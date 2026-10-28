@@ -11,7 +11,18 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Teams mit seinem privaten Microsoft-Konto** (Teams kostenlos). Graph-Chat-APIs
   gibt es dafür nicht → Chatverlauf per Teams-Datenexport (Datei) statt API.
   Für das automatische Senden ist noch zu klären, über welchen Kanal das läuft.
-- **Produktliste (Korrektur):** Kein OneDrive, sondern das **Google Sheet „Angebote“**
+- **Hauptquelle Produkte: Google Sheet „Warenbestand (automated)“**
+  (ID `12iVxgJ1iw7i8h3mCTMJwocDi2J2DNOtNDaCicUZ_12Y`, Eigentümer Florian Robrecht,
+  wird automatisch aktualisiert). Blatt „Warenbestand“ (~300 Artikel): Hersteller,
+  Artikel, EAN, Idealo EK, ⌀ EK, Letzter/⌀ VK, Lager, Verfügbar, Bestandswert,
+  Bestand pro Lager (Bergkamen, Bochum, Dortmund, Dropshipping, Hongkong,
+  Langenbach, Unna), MPN, idealo_id – danach **eine Preisspalte pro Kunde**
+  (~70 B2B-Händler, z. B. Bechtle, Galaxus, notebooksbilliger, AXRO).
+  Weitere Blätter: Transportschaeden, Alte Artikel, Self-Order-Log (bestehendes
+  Bestellportal, legt bereits Aufträge in weclapp an).
+  **Blatt „FTP-CONFIG“ enthält Zugangsdaten im Klartext – niemals auslesen,
+  speichern, loggen oder ins Repo übernehmen.** Der Agent liest nur „Warenbestand“.
+- **Zweite Tabelle „Angebote“**: Kein OneDrive, sondern ein Google Sheet
   (ID `1wlUxlXhqmIwCJMDHvqwRws-Hh1p2oruKoFRokIckLXU`, Eigentümer Robert Grüner,
   mit Marc geteilt). Ändert sich stündlich → automatischer Abruf, kein Upload.
   Viele Tabellenblätter (u. a. Robert ~17.000 Zeilen, Joel, Andy, Moe, Alex,
@@ -37,7 +48,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 
 ## Offene Punkte an Marc
 
-- Welche Tabellenblätter/Zeilen sind „Marcs“ Angebote? Bedeutung der Spalte „Marc“?
+- Welche der ~70 Händler im Warenbestand sind Marcs Kunden in Teams?
+- Rolle der Tabelle „Angebote“ neben dem Warenbestand?
+- Bestellportal/Self-Order von Florian für Aufträge mitnutzen statt eigener weclapp-Anbindung?
 - Dauerzugriff aufs Google Sheet für den Server: Google-Dienstkonto (nur Lesen)
 - Kanal für das automatische Senden: Firmen-Teams (über IT), E-Mail oder WhatsApp Business?
 - Hat die Firma Microsoft 365 mit IT-Admin?
