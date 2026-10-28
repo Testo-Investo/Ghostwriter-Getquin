@@ -20,6 +20,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   (~70 B2B-Händler, z. B. Bechtle, Galaxus, notebooksbilliger, AXRO).
   Weitere Blätter: Transportschaeden, Alte Artikel, Self-Order-Log (bestehendes
   Bestellportal, legt bereits Aufträge in weclapp an).
+  **Marcs Regeln:** Kunde sieht Artikel + EAN (+ Angebotspreis). Intern: ⌀ EK als
+  Untergrenze, „Letzter VK“ als Orientierung für den Preis. Nur „Verfügbar“ > 0
+  anbieten, alles mit 0 ignorieren. Andere Spalten vorerst nicht relevant.
+  Code: `agent/stock.py`.
   **Blatt „FTP-CONFIG“ enthält Zugangsdaten im Klartext – niemals auslesen,
   speichern, loggen oder ins Repo übernehmen.** Der Agent liest nur „Warenbestand“.
 - **Zweite Tabelle „Angebote“**: Kein OneDrive, sondern ein Google Sheet
@@ -63,5 +67,6 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/graph.py` – Microsoft-Graph-Client (MSAL, Token-Cache)
 - `agent/catalog.py` – Produktliste laden (lokale Datei oder Freigabelink; Google Sheet folgt)
 - `agent/teams_export.py` – Teams-Chatverläufe lokal nach `data/` exportieren
+- `agent/stock.py` – Warenbestand parsen und filtern (Verfügbar > 0)
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
