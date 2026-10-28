@@ -11,8 +11,14 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Teams mit seinem privaten Microsoft-Konto** (Teams kostenlos). Graph-Chat-APIs
   gibt es dafür nicht → Chatverlauf per Teams-Datenexport (Datei) statt API.
   Für das automatische Senden ist noch zu klären, über welchen Kanal das läuft.
-- **Produktliste:** Excel-Datei im **privaten OneDrive** von Marc. Vorerst als
-  Datei-Upload (`PRODUCT_EXCEL_FILE`), später automatischer Abgleich.
+- **Produktliste (Korrektur):** Kein OneDrive, sondern das **Google Sheet „Angebote“**
+  (ID `1wlUxlXhqmIwCJMDHvqwRws-Hh1p2oruKoFRokIckLXU`, Eigentümer Robert Grüner,
+  mit Marc geteilt). Ändert sich stündlich → automatischer Abruf, kein Upload.
+  Viele Tabellenblätter (u. a. Robert ~17.000 Zeilen, Joel, Andy, Moe, Alex,
+  Richard, Leifheit, Samsung, NeobutionLLC). Typische Spalten: Marke, Produkt,
+  Artikelnr., EAN, EK, Menge, Order, Lieferzeit, Datum, Idealo-Preise, Differenz %,
+  Amazon, sowie Spalten pro Vertriebler (Rafa, Mogge, Marc, Alex).
+  Der Agent liest nur, schreibt nie in diese Tabelle.
 - **Kunden:** Marcs Bestandskunden mit langem Chatverlauf in Teams.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
@@ -31,6 +37,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 
 ## Offene Punkte an Marc
 
+- Welche Tabellenblätter/Zeilen sind „Marcs“ Angebote? Bedeutung der Spalte „Marc“?
+- Dauerzugriff aufs Google Sheet für den Server: Google-Dienstkonto (nur Lesen)
 - Kanal für das automatische Senden: Firmen-Teams (über IT), E-Mail oder WhatsApp Business?
 - Hat die Firma Microsoft 365 mit IT-Admin?
 - Verhandlungsregeln: max. Rabatt, Mindestmarge, Freigabegrenze in €
@@ -40,7 +48,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 ## Struktur
 
 - `agent/graph.py` – Microsoft-Graph-Client (MSAL, Token-Cache)
-- `agent/catalog.py` – Produkt-Excel laden (lokale Datei oder OneDrive-Link)
+- `agent/catalog.py` – Produktliste laden (lokale Datei oder Freigabelink; Google Sheet folgt)
 - `agent/teams_export.py` – Teams-Chatverläufe lokal nach `data/` exportieren
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
