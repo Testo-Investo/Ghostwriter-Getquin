@@ -1,4 +1,4 @@
-"""Einstieg: python -m agent.cli <stock|watch|whoami|catalog|export-chats>"""
+"""Einstieg: python -m agent.cli <stock|watch|offer|whoami|catalog|export-chats>"""
 
 import json
 import os
@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
+from .offer import build_offer, instant_offer, render_text
 from .stock import offerable, parse_stock_csv
 from .teams_export import export_chats
 from .watch import diff, fresh_arrivals, load_latest_snapshot, save_snapshot
@@ -25,7 +26,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"stock", "watch", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"stock", "watch", "offer", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "stock":
@@ -42,7 +43,7 @@ def main() -> None:
         previous = load_latest_snapshot(before=path)
         print(f"Snapshot gespeichert: {path}")
         fresh = fresh_arrivals(current)
-        print(f"\n{len(fresh)} neue Wareneingänge (letzte Tage), zuerst anbieten:")
+        print(f"\n{len(fresh)} neue Wareneingänge (letzte 7 Tage), zuerst anbieten:")
         for i in fresh:
             print(f"  {i.letzter_we}  {i.artikel[:55]:<55} {i.verfuegbar:>6} Stk  {i.angebotspreis:>9.2f} €")
         if previous is None:
@@ -52,6 +53,14 @@ def main() -> None:
         print(f"\n{len(events)} Änderungen seit dem letzten Abruf:")
         for e in events:
             print("  " + e.text())
+        instant = instant_offer(current, events)
+        if instant:
+            print(f"\n⚡ Sofort-Angebot vorbereitet ({len(instant)} Artikel):\n")
+            print(render_text(instant))
+        return
+    if cmd == "offer":
+        current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
+        print(render_text(build_offer(current, max_rest=int(os.getenv("OFFER_MAX_REST", "20")))))
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):

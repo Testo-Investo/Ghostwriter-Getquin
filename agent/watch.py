@@ -12,7 +12,7 @@ from pathlib import Path
 from .stock import StockItem, offerable
 
 SNAPSHOT_DIR = Path("data/snapshots")
-NEU_TAGE = 3  # Wareneingang der letzten X Tage gilt als „neu“
+NEU_TAGE = 7  # Wareneingang der letzten 7 Tage gilt als „neu“ (Marc)
 
 
 @dataclass

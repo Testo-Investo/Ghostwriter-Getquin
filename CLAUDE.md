@@ -28,7 +28,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Alle Microsoft-Surface-Produkte werden nie angeboten.**
   **Stündlich aktualisiert, auch die Mengen.** Sortierung: oben stehen die neuesten
   Wareneingänge (Spalte „Letzter WE“). Diese Artikel immer genau beobachten und
-  bevorzugt anbieten. Code: `agent/watch.py` (Snapshots + Änderungen je Abruf).
+  bevorzugt anbieten. **„Neu“ = Wareneingang der letzten 7 Tage** → stehen im
+  Angebot immer oben. Kommt neue Ware rein (neu/aufgestockt), wird sofort ein
+  Angebot mit diesen Artikeln und Mengen vorbereitet.
+  Code: `agent/watch.py` (Snapshots + Änderungen), `agent/offer.py` (Angebot).
   Code: `agent/stock.py`.
   **Blatt „FTP-CONFIG“ enthält Zugangsdaten im Klartext – niemals auslesen,
   speichern, loggen oder ins Repo übernehmen.** Der Agent liest nur „Warenbestand“.
@@ -75,5 +78,6 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/teams_export.py` – Teams-Chatverläufe lokal nach `data/` exportieren
 - `agent/stock.py` – Warenbestand parsen und filtern (Verfügbar > 0)
 - `agent/watch.py` – stündliche Snapshots, Änderungen (neu, aufgestockt, geht weg, Preis), neue Wareneingänge
+- `agent/offer.py` – Angebot bauen (neue Wareneingänge oben) und Sofort-Angebot bei neuer Ware
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
