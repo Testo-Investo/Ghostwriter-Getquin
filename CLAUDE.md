@@ -6,8 +6,11 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 
 ## Festgehaltene Entscheidungen (vom Nutzer bestätigt)
 
-- **Datenschutz / Freigaben: geklärt.** Marc ist Admin im Microsoft-365-Tenant
-  und hat vollen Zugriff auf alle beteiligten Programme. Nicht erneut nachfragen.
+- **Datenschutz: geklärt.** Nicht erneut nachfragen.
+- **Korrektur:** Marc ist **kein** Microsoft-Admin. Für die Kunden nutzt er
+  **Teams mit seinem privaten Microsoft-Konto** (Teams kostenlos). Graph-Chat-APIs
+  gibt es dafür nicht → Chatverlauf per Teams-Datenexport (Datei) statt API.
+  Für das automatische Senden ist noch zu klären, über welchen Kanal das läuft.
 - **Produktliste:** Excel-Datei auf einem geteilten Microsoft-Laufwerk
   (SharePoint/OneDrive) → Zugriff über Microsoft Graph.
 - **Kunden:** Marcs Bestandskunden mit langem Chatverlauf in Teams.
@@ -28,7 +31,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 
 ## Offene Punkte an Marc
 
-- Kunden in Teams extern (andere Firmen) oder im eigenen Tenant?
+- Kanal für das automatische Senden: Firmen-Teams (über IT), E-Mail oder WhatsApp Business?
+- Hat die Firma Microsoft 365 mit IT-Admin? Liegt die Excel-Liste dort oder im privaten OneDrive?
 - Verhandlungsregeln: max. Rabatt, Mindestmarge, Freigabegrenze in €
 - Angebotsfrequenz pro Kunde
 - KI-Hinweis in Nachrichten vs. Freigabe jeder Nachricht (EU AI Act Art. 50)
