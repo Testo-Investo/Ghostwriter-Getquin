@@ -7,9 +7,17 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .catalog import load_catalog
+from .catalog import load_catalog, parse_products
 from .graph import GraphClient
 from .teams_export import export_chats
+
+
+def _save_catalog(products: list[dict]) -> None:
+    Path("data").mkdir(exist_ok=True)
+    Path("data/catalog.json").write_text(json.dumps(products, ensure_ascii=False, indent=2, default=str))
+    print(f"{len(products)} Produkte geladen → data/catalog.json")
+    if products:
+        print("Spalten:", ", ".join(products[0].keys()))
 
 
 def main() -> None:
@@ -17,6 +25,10 @@ def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
     if cmd not in {"whoami", "catalog", "export-chats"}:
         print(__doc__)
+        return
+    if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
+        products = parse_products(Path(os.environ["PRODUCT_EXCEL_FILE"]).read_bytes(), os.getenv("PRODUCT_EXCEL_SHEET") or None)
+        _save_catalog(products)
         return
     graph = GraphClient()
 
@@ -26,11 +38,7 @@ def main() -> None:
 
     elif cmd == "catalog":
         products = load_catalog(graph, os.environ["PRODUCT_EXCEL_SHARE_URL"], os.getenv("PRODUCT_EXCEL_SHEET") or None)
-        Path("data").mkdir(exist_ok=True)
-        Path("data/catalog.json").write_text(json.dumps(products, ensure_ascii=False, indent=2, default=str))
-        print(f"{len(products)} Produkte geladen → data/catalog.json")
-        if products:
-            print("Spalten:", ", ".join(products[0].keys()))
+        _save_catalog(products)
 
     elif cmd == "export-chats":
         summary = export_chats(graph, int(os.getenv("CHAT_HISTORY_MONTHS", "12")))

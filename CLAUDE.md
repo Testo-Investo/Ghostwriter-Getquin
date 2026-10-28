@@ -11,8 +11,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Teams mit seinem privaten Microsoft-Konto** (Teams kostenlos). Graph-Chat-APIs
   gibt es dafür nicht → Chatverlauf per Teams-Datenexport (Datei) statt API.
   Für das automatische Senden ist noch zu klären, über welchen Kanal das läuft.
-- **Produktliste:** Excel-Datei auf einem geteilten Microsoft-Laufwerk
-  (SharePoint/OneDrive) → Zugriff über Microsoft Graph.
+- **Produktliste:** Excel-Datei im **privaten OneDrive** von Marc. Vorerst als
+  Datei-Upload (`PRODUCT_EXCEL_FILE`), später automatischer Abgleich.
 - **Kunden:** Marcs Bestandskunden mit langem Chatverlauf in Teams.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
@@ -32,7 +32,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 ## Offene Punkte an Marc
 
 - Kanal für das automatische Senden: Firmen-Teams (über IT), E-Mail oder WhatsApp Business?
-- Hat die Firma Microsoft 365 mit IT-Admin? Liegt die Excel-Liste dort oder im privaten OneDrive?
+- Hat die Firma Microsoft 365 mit IT-Admin?
 - Verhandlungsregeln: max. Rabatt, Mindestmarge, Freigabegrenze in €
 - Angebotsfrequenz pro Kunde
 - KI-Hinweis in Nachrichten vs. Freigabe jeder Nachricht (EU AI Act Art. 50)
@@ -40,7 +40,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 ## Struktur
 
 - `agent/graph.py` – Microsoft-Graph-Client (MSAL, Token-Cache)
-- `agent/catalog.py` – Produkt-Excel vom geteilten Laufwerk laden
+- `agent/catalog.py` – Produkt-Excel laden (lokale Datei oder OneDrive-Link)
 - `agent/teams_export.py` – Teams-Chatverläufe lokal nach `data/` exportieren
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
