@@ -5,8 +5,9 @@ Angebot aus dem aktuellen Warenbestand: passende Marken zuerst, dann neue
 Wareneingänge. Ablauf: `mail-preview` erzeugt alle Mails als Dateien zum Prüfen,
 `mail-send --test` schickt sie an Marc selbst, `mail-send` an die Kunden.
 
-Empfängerliste (CSV/Excel, erste Zeile = Überschriften):
-    Firma, Vorname, E-Mail, Marken (optional, mit Komma getrennt)
+Empfängerliste (CSV/Excel, erste Zeile = Überschriften), wie Marcs Serienbrief-Listen:
+    Vorname, Nachname, E-Mail, Produkt(e) (Marken oder Kategorien, mit Komma), Land
+Sprache: Deutsch, oder Englisch wenn der Dateiname „engl“ enthält (oder sprache="en").
 Abmeldungen: eine E-Mail-Adresse pro Zeile in data/abmeldungen.txt.
 Zugang: IONOS_SMTP_USER / IONOS_SMTP_PASSWORD als Secret auf dem Server –
 niemals im Chat oder im Repo.
@@ -16,6 +17,7 @@ import csv
 import html
 import io
 import os
+import re
 import smtplib
 import ssl
 import time
@@ -36,6 +38,48 @@ PAUSE_SEKUNDEN = 4          # Abstand zwischen zwei Mails, schont Reputation und
 MAX_ARTIKEL = 15
 ABMELDUNGEN = Path("data/abmeldungen.txt")
 OUTBOX = Path("data/outbox")
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
+
+
+# Kategorien aus der Spalte „Produkt(e)“ → Hersteller im Warenbestand
+KATEGORIEN = {
+    "handy": {"samsung", "google", "apple"}, "smartphone": {"samsung", "google", "apple"},
+    "phone": {"samsung", "google", "apple"}, "mobile": {"samsung", "google", "apple"},
+    "kamera": {"canon", "sony", "dji"}, "camera": {"canon", "sony", "dji"},
+    "drohne": {"dji"}, "drone": {"dji"}, "monitor": {"dell", "lenovo"},
+    "saugroboter": {"dreame", "ecovacs"}, "vacuum": {"dreame", "ecovacs"},
+    "lautsprecher": {"jbl", "marshall", "amazon"}, "speaker": {"jbl", "marshall", "amazon"},
+    "smartwatch": {"garmin", "fitbit", "samsung"}, "konsole": {"nintendo", "sony"},
+    "console": {"nintendo", "sony"}, "gaming": {"nintendo", "sony", "razer", "meta"},
+    "kameras": {"canon", "sony", "dji", "fujifilm"}, "cameras": {"canon", "sony", "dji", "fujifilm"},
+    "drucker": {"canon", "hp", "zebra"}, "printer": {"canon", "hp", "zebra"}, "printers": {"canon", "hp", "zebra"},
+    "monitore": {"dell", "lenovo"}, "monitors": {"dell", "lenovo"}, "montors": {"dell", "lenovo"},
+    "headphones": {"marshall", "sony", "jbl", "epos"}, "kopfhörer": {"marshall", "sony", "jbl", "epos"},
+    "kaffeemaschinen": {"delonghi"}, "kaffe maschinen": {"delonghi"}, "delongi": {"delonghi"},
+    "mashall": {"marshall"}, "plantronics": {"poly"}, "western digital": {"wd", "western"},
+    "phones": {"samsung", "google", "apple"},
+}
+# „alle A-Marken“ o. ä. heißt: keine Einschränkung, nur neue Ware
+ALLE = {"a marken", "a brands", "all a marken", "all brands", "alles"}
+
+TEXTE = {
+    "de": {
+        "gruss": "Moin {vorname},", "gruss_ohne": "Moin,",
+        "intro": "hier die aktuelle Ware, sofort verfügbar:",
+        "outro": "Preise netto, solange Vorrat reicht.\nMeld dich einfach.",
+        "abmelden": "Keine Angebote mehr? Kurz mit „Abmelden“ antworten.",
+        "betreff": "Angebot {datum} – {marke} & mehr",
+        "kopf": ("Artikel", "EAN", "Menge", "Preis"),
+    },
+    "en": {
+        "gruss": "Hi {vorname},", "gruss_ohne": "Hi,",
+        "intro": "please find our current stock below, available immediately:",
+        "outro": "Prices net, ex works Germany, subject to prior sale.\nJust reply if you are interested.",
+        "abmelden": "No more offers? Simply reply with “Unsubscribe”.",
+        "betreff": "Stock offer {datum} – {marke} & more",
+        "kopf": ("Item", "EAN", "Qty", "Price"),
+    },
+}
 
 
 @dataclass
@@ -44,10 +88,12 @@ class Recipient:
     vorname: str
     email: str
     marken: set[str]
+    sprache: str = "de"
 
 
-def load_recipients(path: str | Path) -> list[Recipient]:
+def load_recipients(path: str | Path, sprache: str | None = None) -> list[Recipient]:
     path = Path(path)
+    sprache = sprache or ("en" if "engl" in path.name.lower() else "de")
     if path.suffix.lower() in (".xlsx", ".xlsm"):
         ws = load_workbook(path, read_only=True, data_only=True).worksheets[0]
         rows = [[("" if c is None else str(c)).strip() for c in r] for r in ws.iter_rows(values_only=True)]
@@ -55,19 +101,27 @@ def load_recipients(path: str | Path) -> list[Recipient]:
         rows = [[c.strip() for c in r] for r in csv.reader(io.StringIO(path.read_text(encoding="utf-8-sig")), delimiter=";" if ";" in path.read_text()[:500] else ",")]
     head = [h.lower() for h in rows[0]]
     col = lambda *names: next((head.index(n) for n in names if n in head), None)
-    i_firma, i_vor, i_mail, i_mark = col("firma", "kunde"), col("vorname", "ansprechpartner", "name"), col("e-mail", "email", "mail"), col("marken", "marke")
+    i_firma, i_vor, i_mail, i_mark = (col("firma", "kunde"), col("vorname", "ansprechpartner", "name"),
+                                      col("e-mail", "email", "mail"), col("marken", "marke", "produkte", "produkt"))
     if i_mail is None:
         raise ValueError("Spalte „E-Mail“ fehlt in der Empfängerliste")
     blocked = {l.strip().lower() for l in ABMELDUNGEN.read_text().splitlines()} if ABMELDUNGEN.exists() else set()
     out, seen = [], set()
     for r in rows[1:]:
         get = lambda i: r[i] if i is not None and i < len(r) else ""
-        email = get(i_mail).lower()
-        if "@" not in email or email in blocked or email in seen:
+        email = get(i_mail).strip().lower()
+        if not _EMAIL.match(email) or email in blocked or email in seen:
             continue
         seen.add(email)
-        marken = {m.strip().lower() for m in get(i_mark).split(",") if m.strip()}
-        out.append(Recipient(get(i_firma), get(i_vor), email, marken))
+        marken = set()
+        for m in re.split(r"[,;/]|\bund\b|\band\b", get(i_mark).lower()):
+            m = m.strip()
+            if m and m not in ALLE:
+                marken |= KATEGORIEN.get(m) or {w for word in m.split() for w in KATEGORIEN.get(word, {word})}
+        vorname = get(i_vor)
+        if vorname.lower() in ("team", "sales", "info"):
+            vorname = ""
+        out.append(Recipient(get(i_firma) or email.split("@")[1], vorname, email, marken, sprache))
     return out
 
 
@@ -75,35 +129,40 @@ def pick_items(recipient: Recipient, items: list[StockItem]) -> list[StockItem]:
     """Neue Wareneingänge seiner Marken, dann übrige seiner Marken, dann übrige neue Ware."""
     fresh = {i.ean for i in fresh_arrivals(items)}
     pool = sorted(offerable(items), key=lambda i: i.position)
-    mine = [i for i in pool if i.hersteller.lower() in recipient.marken]
+    mine = [i for i in pool if i.hersteller.lower() in recipient.marken
+            or i.hersteller.lower().replace("!", "") in recipient.marken]
     ordered = [i for i in mine if i.ean in fresh] + [i for i in mine if i.ean not in fresh]
     ordered += [i for i in pool if i.ean in fresh and i not in ordered]
     return ordered[:MAX_ARTIKEL]
 
 
-def _euro(v: float) -> str:
+def _euro(v: float, sprache: str = "de") -> str:
+    if sprache == "en":
+        return f"€{v:,.2f}"
     return f"{v:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def build_message(r: Recipient, items: list[StockItem], absender: str, absender_name: str) -> EmailMessage:
-    gruss = f"Moin {r.vorname}," if r.vorname else "Moin,"
+    t = TEXTE[r.sprache]
+    gruss = t["gruss"].format(vorname=r.vorname) if r.vorname else t["gruss_ohne"]
     heute = date.today().strftime("%d.%m.%Y")
-    lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{_euro(i.angebotspreis)}" for i in items)
-    abmelden = "Keine Angebote mehr? Kurz mit „Abmelden“ antworten."
-    text = f"{gruss}\n\nhier die aktuelle Ware, sofort verfügbar:\n\n{lines}\n\nPreise netto, solange Vorrat reicht.\nMeld dich einfach.\n\n{absender_name}\n\n{abmelden}\n"
+    eur = lambda v: _euro(v, r.sprache)
+    lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{eur(i.angebotspreis)}" for i in items)
+    text = f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n{t['outro']}\n\n{absender_name}\n\n{t['abmelden']}\n"
     rows = "".join(
         f"<tr><td>{html.escape(i.artikel)}</td><td>{i.ean}</td><td style='text-align:right'>{i.verfuegbar}x</td>"
-        f"<td style='text-align:right;white-space:nowrap'>{_euro(i.angebotspreis)}</td></tr>" for i in items
+        f"<td style='text-align:right;white-space:nowrap'>{eur(i.angebotspreis)}</td></tr>" for i in items
     )
+    kopf = "".join(f"<th align='left'>{h}</th>" for h in t["kopf"])
     body = (
-        f"<p>{html.escape(gruss)}</p><p>hier die aktuelle Ware, sofort verfügbar:</p>"
+        f"<p>{html.escape(gruss)}</p><p>{html.escape(t['intro'])}</p>"
         "<table cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px'>"
-        "<tr style='background:#eee'><th align='left'>Artikel</th><th align='left'>EAN</th><th>Menge</th><th>Preis</th></tr>"
-        f"{rows}</table><p>Preise netto, solange Vorrat reicht.<br>Meld dich einfach.</p>"
-        f"<p>{html.escape(absender_name)}</p><p style='color:#888;font-size:12px'>{html.escape(abmelden)}</p>"
+        f"<tr style='background:#eee'>{kopf}</tr>{rows}</table>"
+        f"<p>{html.escape(t['outro']).replace(chr(10), '<br>')}</p>"
+        f"<p>{html.escape(absender_name)}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
     )
     msg = EmailMessage()
-    msg["Subject"] = f"Angebot {heute} – {items[0].hersteller} {('& mehr' if len(items) > 1 else '')}".strip()
+    msg["Subject"] = t["betreff"].format(datum=heute, marke=items[0].hersteller)
     msg["From"] = formataddr((absender_name, absender))
     msg["To"] = formataddr((r.vorname or r.firma, r.email))
     msg["Message-ID"] = make_msgid(domain=absender.split("@")[-1])
@@ -125,9 +184,9 @@ def build_all(recipients: list[Recipient], items: list[StockItem], absender: str
     return out
 
 
-def write_preview(mails: list[Mail]) -> Path:
+def write_preview(mails: list[Mail], name: str = "") -> Path:
     """Alle Mails als .eml (in Outlook öffnen) plus eine Übersicht zum Durchblättern."""
-    folder = OUTBOX / date.today().isoformat()
+    folder = OUTBOX / date.today().isoformat() / name
     folder.mkdir(parents=True, exist_ok=True)
     cards = []
     for n, (r, msg, _) in enumerate(mails, 1):

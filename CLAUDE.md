@@ -60,6 +60,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Testversand an Marc, dann Versand mit Pause zwischen den Mails, Abmeldeliste.
   SMTP (smtp.ionos.de:587) ist aus der Claude-Cloud-Umgebung nicht erreichbar →
   Versand vom Server oder Marcs Rechner; Zugangsdaten nur als Secret dort.
+  Marcs vier Serienbrief-Listen (deutsch, englisch, englisch Messe, Dubai; 182
+  Adressen) liegen lokal unter `data/mailinglisten/` – nie committen. Englisch,
+  wenn der Dateiname „engl“ enthält; Spalte „Produkt(e)“ = Marken/Kategorien.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
   (EU-Region) und spricht ausschließlich über APIs mit den Systemen.

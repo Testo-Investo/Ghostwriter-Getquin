@@ -1,8 +1,8 @@
 """Einstieg: python -m agent.cli <befehl>
 
   stock | watch | offer | profiles
-  mail-preview <empfaenger.csv|xlsx>
-  mail-send <empfaenger.csv|xlsx> [--test deine@adresse.de]
+  mail-preview <liste.xlsx> [weitere Listen …]
+  mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
   whoami | catalog | export-chats
 """
 
@@ -85,14 +85,21 @@ def main() -> None:
         return
     if cmd in ("mail-preview", "mail-send"):
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
-        recipients = mailer.load_recipients(sys.argv[2])
-        mails = mailer.build_all(recipients, current, os.getenv("MAIL_FROM", "marc@example.de"), os.getenv("MAIL_NAME", "Marc Knieb"))
-        folder = mailer.write_preview(mails)
-        print(f"{len(mails)} Mails für {len(recipients)} Empfänger vorbereitet → {folder}/vorschau.html")
-        if cmd == "mail-send":
-            test_to = sys.argv[sys.argv.index("--test") + 1] if "--test" in sys.argv else None
-            log = mailer.send_all(mails, test_to)
-            print(("Testversand an " + test_to if test_to else "Versand an Kunden") + f" fertig → {log}")
+        args = sys.argv[2:]
+        test_to = None
+        if "--test" in args:
+            test_to = args[args.index("--test") + 1]
+            args = args[:args.index("--test")] + args[args.index("--test") + 2:]
+        seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
+        for liste in args:
+            recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
+            seen |= {r.email for r in recipients}
+            mails = mailer.build_all(recipients, current, os.getenv("MAIL_FROM", "marc@example.de"), os.getenv("MAIL_NAME", "Marc Knieb"))
+            folder = mailer.write_preview(mails, Path(liste).stem)
+            print(f"{Path(liste).name}: {len(mails)} Mails → {folder}/vorschau.html")
+            if cmd == "mail-send":
+                log = mailer.send_all(mails, test_to)
+                print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
