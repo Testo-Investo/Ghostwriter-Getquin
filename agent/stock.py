@@ -7,6 +7,8 @@
 - Weggelassen: Letzter VK unter ⌀ EK, kein ⌀ EK vorhanden, Microsoft Surface.
 
 Gelesen wird ausschließlich das erste Blatt „Warenbestand“ (CSV-Export).
+Die Liste wird stündlich aktualisiert und ist nach Wareneingang sortiert:
+oben stehen die neuesten Wareneingänge („Letzter WE“) – die zuerst anbieten.
 """
 
 import csv
@@ -14,6 +16,7 @@ import io
 import math
 import re
 from dataclasses import dataclass
+from datetime import date, datetime
 
 MARKUP_WITHOUT_LAST_VK = 0.10
 
@@ -36,6 +39,14 @@ class StockItem:
     verfuegbar: int
     lager: dict[str, int]      # Bestand je Standort (nur > 0)
     letzter_we: str
+    position: int              # Zeile im Sheet, 1 = neuester Wareneingang
+
+    @property
+    def wareneingang(self) -> date | None:
+        try:
+            return datetime.strptime(self.letzter_we, "%d.%m.%Y").date()
+        except ValueError:
+            return None
 
     @property
     def angebotspreis(self) -> float | None:
@@ -74,6 +85,7 @@ def parse_stock_csv(text: str) -> list[StockItem]:
         if not row.get("Artikel"):
             continue
         items.append(StockItem(
+            position=len(items) + 1,
             hersteller=row.get("Hersteller", "").strip(),
             artikel=row["Artikel"].strip(),
             ean=row.get("EAN", "").strip(),

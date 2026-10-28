@@ -1,4 +1,4 @@
-"""Einstieg: python -m agent.cli <stock|whoami|catalog|export-chats>"""
+"""Einstieg: python -m agent.cli <stock|watch|whoami|catalog|export-chats>"""
 
 import json
 import os
@@ -11,6 +11,7 @@ from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
 from .stock import offerable, parse_stock_csv
 from .teams_export import export_chats
+from .watch import diff, fresh_arrivals, load_latest_snapshot, save_snapshot
 
 
 def _save_catalog(products: list[dict]) -> None:
@@ -24,7 +25,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"stock", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"stock", "watch", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "stock":
@@ -34,6 +35,23 @@ def main() -> None:
         for i in items:
             quelle = "letzter VK" if i.vk_last else "EK + 10 %"
             print(f"  {i.artikel[:55]:<55} {i.ean:<14} {i.verfuegbar:>6} Stk  {i.angebotspreis:>9.2f} €  ({quelle})")
+        return
+    if cmd == "watch":
+        current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
+        path = save_snapshot(current)
+        previous = load_latest_snapshot(before=path)
+        print(f"Snapshot gespeichert: {path}")
+        fresh = fresh_arrivals(current)
+        print(f"\n{len(fresh)} neue Wareneingänge (letzte Tage), zuerst anbieten:")
+        for i in fresh:
+            print(f"  {i.letzter_we}  {i.artikel[:55]:<55} {i.verfuegbar:>6} Stk  {i.angebotspreis:>9.2f} €")
+        if previous is None:
+            print("\nErster Lauf – noch kein Vergleich möglich.")
+            return
+        events = diff(previous, current)
+        print(f"\n{len(events)} Änderungen seit dem letzten Abruf:")
+        for e in events:
+            print("  " + e.text())
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
