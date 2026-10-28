@@ -3,6 +3,7 @@
 import base64
 import io
 
+import requests
 from openpyxl import load_workbook
 
 from .graph import GraphClient
@@ -12,6 +13,16 @@ def _share_id(share_url: str) -> str:
     # Graph-Format für Freigabelinks: "u!" + base64url ohne Padding
     encoded = base64.urlsafe_b64encode(share_url.encode()).decode().rstrip("=")
     return f"u!{encoded}"
+
+
+def download_public_excel(share_url: str) -> bytes:
+    """Privates OneDrive: Link mit "Jeder mit dem Link kann anzeigen" – ohne Login."""
+    resp = requests.get(
+        f"https://api.onedrive.com/v1.0/shares/{_share_id(share_url)}/root/content",
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.content
 
 
 def download_excel(graph: GraphClient, share_url: str) -> bytes:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .catalog import load_catalog, parse_products
+from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
 from .teams_export import export_chats
 
@@ -26,9 +26,12 @@ def main() -> None:
     if cmd not in {"whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
+    sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
-        products = parse_products(Path(os.environ["PRODUCT_EXCEL_FILE"]).read_bytes(), os.getenv("PRODUCT_EXCEL_SHEET") or None)
-        _save_catalog(products)
+        _save_catalog(parse_products(Path(os.environ["PRODUCT_EXCEL_FILE"]).read_bytes(), sheet))
+        return
+    if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_PUBLIC_URL"):
+        _save_catalog(parse_products(download_public_excel(os.environ["PRODUCT_EXCEL_PUBLIC_URL"]), sheet))
         return
     graph = GraphClient()
 
@@ -37,7 +40,7 @@ def main() -> None:
         print(f"Angemeldet als {me['displayName']} <{me.get('mail') or me['userPrincipalName']}>")
 
     elif cmd == "catalog":
-        products = load_catalog(graph, os.environ["PRODUCT_EXCEL_SHARE_URL"], os.getenv("PRODUCT_EXCEL_SHEET") or None)
+        products = load_catalog(graph, os.environ["PRODUCT_EXCEL_SHARE_URL"], sheet)
         _save_catalog(products)
 
     elif cmd == "export-chats":
