@@ -4,7 +4,7 @@
 - Interne Kalkulation: ⌀ EK (Untergrenze), Letzter VK (Orientierung für den VK)
 - Nur Artikel mit „Verfügbar“ > 0 sind anbietbar.
 - Preis: Letzter VK; ohne letzten VK ⌀ EK + 10 %.
-- Weggelassen: Letzter VK unter ⌀ EK, oder kein ⌀ EK vorhanden.
+- Weggelassen: Letzter VK unter ⌀ EK, kein ⌀ EK vorhanden, Microsoft Surface.
 
 Gelesen wird ausschließlich das erste Blatt „Warenbestand“ (CSV-Export).
 """
@@ -16,6 +16,14 @@ import re
 from dataclasses import dataclass
 
 MARKUP_WITHOUT_LAST_VK = 0.10
+
+# Surface-Geräte heißen nicht immer "Surface" (z. B. "Microsoft Pro 7 ... CPO");
+# Dreame "Multi-Surface"-Reiniger dürfen nicht getroffen werden.
+_SURFACE_MODEL = re.compile(r"\bsurface\b|\b(pro|laptop|book|studio|go)\s*\d", re.I)
+
+
+def is_excluded(hersteller: str, artikel: str) -> bool:
+    return hersteller.strip().lower() == "microsoft" and bool(_SURFACE_MODEL.search(artikel))
 
 
 @dataclass
@@ -88,5 +96,8 @@ def available(items: list[StockItem]) -> list[StockItem]:
 
 
 def offerable(items: list[StockItem]) -> list[StockItem]:
-    """Verfügbar und mit gültigem Angebotspreis."""
-    return [i for i in available(items) if i.angebotspreis is not None]
+    """Verfügbar, nicht ausgeschlossen und mit gültigem Angebotspreis."""
+    return [
+        i for i in available(items)
+        if i.angebotspreis is not None and not is_excluded(i.hersteller, i.artikel)
+    ]

@@ -25,6 +25,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   anbieten, alles mit 0 ignorieren. Andere Spalten vorerst nicht relevant.
   **Der Kunde sieht niemals den EK.** Preis = Letzter VK; ohne letzten VK
   ⌀ EK + 10 %. Artikel mit letztem VK unter ⌀ EK werden weggelassen.
+  **Alle Microsoft-Surface-Produkte werden nie angeboten.**
   Code: `agent/stock.py`.
   **Blatt „FTP-CONFIG“ enthält Zugangsdaten im Klartext – niemals auslesen,
   speichern, loggen oder ins Repo übernehmen.** Der Agent liest nur „Warenbestand“.
