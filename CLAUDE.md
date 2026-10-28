@@ -47,6 +47,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   (`messages.json`, ~82.000 Nachrichten, 107 Einzelchats) liegt lokal unter
   `data/teams_export/` – nie committen. Stilprofil: `docs/STILPROFIL.md`
   (kurz, „du“, „moin“, Angebot als Blöcke Artikel/EAN/Menge x/Preis).
+  **Marcs Hauptziel: jeden Morgen pro Kunde ein frisches, kopierfertiges Angebot.**
+  Gleiche Produkte für mehrere Kunden sind ausdrücklich ok. Umsetzung im Dashboard
+  („Angebote für heute“): je Kunde bis 8 passende Artikel (neu zuerst), aufgefüllt
+  mit neuen Wareneingängen auf 10, volle verfügbare Menge. Kundenprofile kommen
+  aus `python -m agent.cli profiles` → `data/kunden.json` (als Datei ins Dashboard
+  hochgeladen; nach jedem neuen Teams-Export neu erzeugen und ersetzen).
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
   (EU-Region) und spricht ausschließlich über APIs mit den Systemen.

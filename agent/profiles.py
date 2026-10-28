@@ -90,3 +90,27 @@ def draft_offer(items: list[StockItem]) -> str:
     """Angebot in Marcs Format: Artikel / EAN / Menge x / Preis – Blöcke mit Leerzeile."""
     blocks = [f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{_euro(i.angebotspreis)}" for i in items]
     return "moin\n\n" + "\n\n".join(blocks)
+
+
+def export_rows(profiles: list[Profile], min_brand_mentions: int = 3) -> list[dict]:
+    """Kundenprofile als flache Zeilen fürs Dashboard (Listen als Leerzeichen-getrennter Text).
+
+    Enthält nur abgeleitete Felder – keine Nachrichtentexte."""
+    rows = []
+    seen = Counter()
+    for p in profiles:
+        seen[p.kunde] += 1
+        label = p.kunde if seen[p.kunde] == 1 else f"{p.kunde} ({seen[p.kunde]})"
+        if p.kunde == "Unbekannt":
+            top = ", ".join(b for b, _ in p.marken.most_common(3))
+            label = f"Unbekannt #{seen[p.kunde]} ({top})" if top else f"Unbekannt #{seen[p.kunde]}"
+        rows.append({
+            "kunde": label,
+            "chat_id": p.chat_id,
+            "letzte": p.letzte_nachricht[:10],
+            "nachrichten_90t": p.nachrichten_90t,
+            "marken": " ".join(b.replace(" ", "_") for b, n in p.marken.most_common() if n >= min_brand_mentions),
+            "eans_kunde": " ".join(sorted(p.eans_kunde)),
+            "eans_marc": " ".join(sorted(p.eans_marc)),
+        })
+    return rows

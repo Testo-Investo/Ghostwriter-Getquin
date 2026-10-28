@@ -27,6 +27,16 @@
   #dash-root .gw-rules { margin: 0; padding-left: 1.1rem; display: grid; gap: var(--cds-gap-xs); }
   #dash-root .gw-plan { display: grid; gap: var(--cds-gap-sm); margin: 0; padding: 0; list-style: none; }
   #dash-root .gw-plan li { display: flex; gap: var(--cds-gap-sm); align-items: baseline; }
+  #dash-root .gw-offers { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+  #dash-root .gw-offer { display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+  #dash-root .gw-offer-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--cds-gap-sm); }
+  #dash-root .gw-offer-name { font-weight: var(--cds-font-weight-medium); overflow-wrap: anywhere; }
+  #dash-root .gw-offer-meta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  #dash-root .gw-offer pre { margin: 0; padding: var(--cds-pad-sm); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); font: inherit; font-size: var(--cds-font-size-caption); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
+  #dash-root .gw-copy { align-self: flex-start; font: inherit; font-size: var(--cds-font-size-caption); padding: var(--cds-pad-xs) var(--cds-pad-md); border-radius: var(--cds-radius); border: 1px solid var(--color-border-line); background: var(--color-panel); color: var(--color-fg); cursor: pointer; }
+  #dash-root .gw-copy:hover { border-color: var(--color-fg-muted); }
+  #dash-root .gw-copy:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  #dash-root .gw-copy.done { color: var(--color-ok); border-color: currentColor; }
   #dash-root .gw-fail { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-xs); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: 6rem; }
   #dash-root .gw-fail i { width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); display: inline-block; }
   #dash-root [data-dash-source-state=empty] { color: transparent; }
@@ -38,6 +48,12 @@
     <h1>Ghostwriter Vertriebs-Cockpit</h1>
     <p>Was der Agent heute anbieten würde – live aus „Warenbestand (automated)“, nach deinen Regeln gefiltert und bepreist. <span data-draw="takeaway" data-source="kennzahlen">—</span></p>
   </header>
+
+  <section class="gw-card" id="angebote-heute">
+    <h2>Angebote für heute</h2>
+    <p class="note">Pro Kunde ein fertiges Angebot in deinem Format, jeden Morgen frisch aus dem aktuellen Bestand. Zuerst, was zum Kunden passt (danach gefragt, seine Marken, schon mal angeboten), dann neue Wareneingänge – die bekommen alle. Kopieren und in Teams einfügen.</p>
+    <div class="gw-offers" data-draw="kunden-angebote" data-source="kundenangebote"></div>
+  </section>
 
   <section class="gw-tiles" id="kennzahlen" aria-label="Kennzahlen">
     <div class="gw-card gw-tile">
@@ -219,6 +235,34 @@
     },
   });
 
+  // Pro Kunde: passende Artikel (neu zuerst) bis 8, dann mit neuen Wareneingängen auf 10 auffüllen
+  dash.calc('kundenangebote', {
+    inputs: ['kunden', 'angebot'],
+    title: 'Angebot je Kunde',
+    description: 'Je Kunde bis zu 8 passende Artikel (vom Kunden erfragte EAN, Marke mind. 3× im Chat, von Marc schon angeboten; neue Ware zuerst), aufgefüllt mit neuen Wareneingängen auf 10; Text im Format aus Marcs Chats.',
+    fn: (kunden, angebot) => {
+      const MAX_PASSEND = 8, MAX_GESAMT = 10;
+      const norm = (e) => String(e || '').replace(/^0+/, '');
+      const words = (s) => new Set(String(s || '').split(' ').filter(Boolean));
+      const euro = (v) => v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €';
+      return kunden.map((k) => {
+        const fragt = words(k.eans_kunde), marken = words(k.marken), angeboten = words(k.eans_marc);
+        const passend = [];
+        angebot.forEach((a) => {
+          const e = norm(a.ean), m = a.hersteller.toLowerCase().replace(/ /g, '_');
+          const rang = fragt.has(e) ? 0 : marken.has(m) ? 1 : angeboten.has(e) ? 2 : null;
+          if (rang !== null) passend.push({ a, rang });
+        });
+        passend.sort((x, y) => (y.a.neu - x.a.neu) || (x.rang - y.rang) || (x.a.position - y.a.position));
+        const liste = passend.slice(0, MAX_PASSEND).map((p) => p.a);
+        const drin = new Set(liste.map((a) => a.ean));
+        angebot.filter((a) => a.neu && !drin.has(a.ean)).forEach((a) => { if (liste.length < MAX_GESAMT) liste.push(a); });
+        const text = 'moin\n\n' + liste.map((a) => `${a.artikel}\n${a.ean}\n${a.verfuegbar}x\n${euro(a.preis)}`).join('\n\n');
+        return { kunde: k.kunde, letzte: k.letzte, passend: Math.min(passend.length, MAX_PASSEND), artikel: liste.length, marken: [...marken].slice(0, 3).join(', '), text };
+      });
+    },
+  });
+
   dash.calc('neu', {
     inputs: ['angebot'],
     title: 'Neue Wareneingänge',
@@ -303,6 +347,30 @@
   });
 
   const td = (text, cls) => { const c = document.createElement('td'); c.textContent = text; if (cls) c.className = cls; return c; };
+
+  dash.draw('kunden-angebote', (el) => {
+    const d = dash.data('kundenangebote');
+    if (d.status === 'error') { fail(el); return; }
+    if (d.status !== 'ok') { el.replaceChildren(); return; }
+    el.replaceChildren(...d.data.filter((r) => r.artikel > 0).map((r) => {
+      const card = document.createElement('article'); card.className = 'gw-card gw-offer';
+      const head = document.createElement('div'); head.className = 'gw-offer-head';
+      const name = document.createElement('div'); name.className = 'gw-offer-name'; name.textContent = r.kunde;
+      const when = document.createElement('div'); when.className = 'gw-offer-meta'; when.textContent = `zuletzt ${dmy(r.letzte)}`;
+      head.append(name, when);
+      const meta = document.createElement('div'); meta.className = 'gw-offer-meta';
+      meta.textContent = `${r.passend} passend · ${r.artikel} Artikel` + (r.marken ? ` · ${r.marken}` : '');
+      const pre = document.createElement('pre'); pre.textContent = r.text;
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'gw-copy'; btn.textContent = 'Kopieren';
+      btn.addEventListener('click', () => {
+        const ok = () => { btn.textContent = 'Kopiert'; btn.classList.add('done'); setTimeout(() => { btn.textContent = 'Kopieren'; btn.classList.remove('done'); }, 2000); };
+        const pick = () => { const sel = window.getSelection(); const rg = document.createRange(); rg.selectNodeContents(pre); sel.removeAllRanges(); sel.addRange(rg); btn.textContent = 'Markiert – Strg+C'; };
+        try { navigator.clipboard.writeText(r.text).then(ok, pick); } catch (e) { pick(); }
+      });
+      card.append(head, meta, pre, btn);
+      return card;
+    }));
+  });
 
   dash.draw('neu-rows', (tb) => {
     const d = dash.data('neu');

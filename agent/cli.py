@@ -1,4 +1,4 @@
-"""Einstieg: python -m agent.cli <stock|watch|offer|whoami|catalog|export-chats>"""
+"""Einstieg: python -m agent.cli <stock|watch|offer|profiles|whoami|catalog|export-chats>"""
 
 import json
 import os
@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 
 from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
+from .profiles import brands_from_stock, build_profile, export_rows
+from .teams_file import load_chats
 from .offer import build_offer, instant_offer, render_text
 from .stock import offerable, parse_stock_csv
 from .teams_export import export_chats
@@ -26,7 +28,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"stock", "watch", "offer", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"stock", "watch", "offer", "profiles", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "stock":
@@ -61,6 +63,18 @@ def main() -> None:
     if cmd == "offer":
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         print(render_text(build_offer(current, max_rest=int(os.getenv("OFFER_MAX_REST", "20")))))
+        return
+    if cmd == "profiles":
+        # Kundenprofile aus dem Teams-Export fürs Dashboard (nur abgeleitete Felder)
+        current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
+        _, chats = load_chats(os.getenv("TEAMS_EXPORT", "data/teams_export/messages.json"))
+        since = os.getenv("KUNDEN_AKTIV_SEIT", "2026-05-01")
+        active = [c for c in chats if c.nachrichten[-1].zeit >= since]
+        profiles = sorted((build_profile(c, brands_from_stock(current)) for c in active),
+                          key=lambda p: p.letzte_nachricht, reverse=True)
+        rows = export_rows(profiles)
+        Path("data/kunden.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1))
+        print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
