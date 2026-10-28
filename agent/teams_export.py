@@ -4,7 +4,6 @@ Nur lesend. Ergebnis: data/chats/<chat_id>.json pro Kunde.
 """
 
 import json
-import os
 import re
 from datetime import datetime, timedelta, timezone
 from html import unescape
@@ -31,10 +30,9 @@ def export_chats(graph: GraphClient, months: int = 12) -> list[dict]:
 
     chats = graph.paged("/me/chats", params={"$filter": "chatType eq 'oneOnOne'", "$expand": "members"})
     for chat in chats:
-        partner = next(
-            (m for m in chat.get("members", []) if m.get("userId") != me["id"]),
-            {},
-        )
+        members = chat.get("members", [])
+        partner = next((m for m in members if m.get("userId") != me["id"]), {})
+        own_tenant = next((m.get("tenantId") for m in members if m.get("userId") == me["id"]), None)
         messages = []
         for msg in graph.paged(f"/me/chats/{chat['id']}/messages", params={"$top": 50}):
             created = datetime.fromisoformat(msg["createdDateTime"].replace("Z", "+00:00"))
@@ -54,7 +52,7 @@ def export_chats(graph: GraphClient, months: int = 12) -> list[dict]:
             "chat_id": chat["id"],
             "kunde": partner.get("displayName", "Unbekannt"),
             "kunde_email": partner.get("email"),
-            "extern": bool(partner.get("tenantId")) and partner["tenantId"] != os.environ["AZURE_TENANT_ID"],
+            "extern": bool(partner.get("tenantId")) and partner["tenantId"] != own_tenant,
             "nachrichten": messages,
         }
         safe_name = re.sub(r"[^\w-]", "_", chat["id"])[:80]

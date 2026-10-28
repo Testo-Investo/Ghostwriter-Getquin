@@ -10,11 +10,15 @@ GRAPH = "https://graph.microsoft.com/v1.0"
 SCOPES = ["User.Read", "Chat.ReadWrite", "Files.Read.All", "Sites.Read.All"]
 CACHE_FILE = Path(".token_cache.json")
 
+# Ohne eigene App-Registrierung: Microsofts offizieller öffentlicher Client
+# "Microsoft Graph Command Line Tools" (wird u. a. von Graph PowerShell genutzt).
+DEFAULT_CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"
+
 
 class GraphClient:
     def __init__(self, tenant_id: str | None = None, client_id: str | None = None):
-        tenant_id = tenant_id or os.environ["AZURE_TENANT_ID"]
-        client_id = client_id or os.environ["AZURE_CLIENT_ID"]
+        tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID") or "organizations"
+        client_id = client_id or os.getenv("AZURE_CLIENT_ID") or DEFAULT_CLIENT_ID
         self._cache = msal.SerializableTokenCache()
         if CACHE_FILE.exists():
             self._cache.deserialize(CACHE_FILE.read_text())
