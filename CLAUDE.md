@@ -23,6 +23,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Marcs Regeln:** Kunde sieht Artikel + EAN (+ Angebotspreis). Intern: ⌀ EK als
   Untergrenze, „Letzter VK“ als Orientierung für den Preis. Nur „Verfügbar“ > 0
   anbieten, alles mit 0 ignorieren. Andere Spalten vorerst nicht relevant.
+  **Der Kunde sieht niemals den EK.** Preis = Letzter VK; ohne letzten VK
+  ⌀ EK + 10 %. Artikel mit letztem VK unter ⌀ EK werden weggelassen.
   Code: `agent/stock.py`.
   **Blatt „FTP-CONFIG“ enthält Zugangsdaten im Klartext – niemals auslesen,
   speichern, loggen oder ins Repo übernehmen.** Der Agent liest nur „Warenbestand“.
@@ -58,7 +60,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - Dauerzugriff aufs Google Sheet für den Server: Google-Dienstkonto (nur Lesen)
 - Kanal für das automatische Senden: Firmen-Teams (über IT), E-Mail oder WhatsApp Business?
 - Hat die Firma Microsoft 365 mit IT-Admin?
-- Verhandlungsregeln: max. Rabatt, Mindestmarge, Freigabegrenze in €
+- Verhandlungsregeln: max. Rabatt beim Verhandeln, Freigabegrenze in €
 - Angebotsfrequenz pro Kunde
 - KI-Hinweis in Nachrichten vs. Freigabe jeder Nachricht (EU AI Act Art. 50)
 

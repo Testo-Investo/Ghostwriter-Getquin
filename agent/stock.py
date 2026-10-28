@@ -3,14 +3,19 @@
 - Für den Kunden:      Artikel, EAN
 - Interne Kalkulation: ⌀ EK (Untergrenze), Letzter VK (Orientierung für den VK)
 - Nur Artikel mit „Verfügbar“ > 0 sind anbietbar.
+- Preis: Letzter VK; ohne letzten VK ⌀ EK + 10 %.
+- Weggelassen: Letzter VK unter ⌀ EK, oder kein ⌀ EK vorhanden.
 
 Gelesen wird ausschließlich das erste Blatt „Warenbestand“ (CSV-Export).
 """
 
 import csv
 import io
+import math
 import re
 from dataclasses import dataclass
+
+MARKUP_WITHOUT_LAST_VK = 0.10
 
 
 @dataclass
@@ -23,6 +28,15 @@ class StockItem:
     verfuegbar: int
     lager: dict[str, int]      # Bestand je Standort (nur > 0)
     letzter_we: str
+
+    @property
+    def angebotspreis(self) -> float | None:
+        """None = nicht anbieten."""
+        if not self.ek_avg:
+            return None
+        if self.vk_last:
+            return self.vk_last if self.vk_last >= self.ek_avg else None
+        return math.ceil(self.ek_avg * (1 + MARKUP_WITHOUT_LAST_VK) * 100) / 100
 
     @property
     def marge_letzter_vk(self) -> float | None:
@@ -71,3 +85,8 @@ def parse_stock_csv(text: str) -> list[StockItem]:
 def available(items: list[StockItem]) -> list[StockItem]:
     """Nur was tatsächlich im Lager verfügbar ist."""
     return [i for i in items if i.verfuegbar > 0]
+
+
+def offerable(items: list[StockItem]) -> list[StockItem]:
+    """Verfügbar und mit gültigem Angebotspreis."""
+    return [i for i in available(items) if i.angebotspreis is not None]
