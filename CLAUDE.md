@@ -43,7 +43,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Artikelnr., EAN, EK, Menge, Order, Lieferzeit, Datum, Idealo-Preise, Differenz %,
   Amazon, sowie Spalten pro Vertriebler (Rafa, Mogge, Marc, Alex).
   Der Agent liest nur, schreibt nie in diese Tabelle.
-- **Kunden:** Marcs Bestandskunden mit langem Chatverlauf in Teams.
+- **Kunden:** Marcs Bestandskunden mit langem Chatverlauf in Teams. Teams-Datenexport
+  (`messages.json`, ~82.000 Nachrichten, 107 Einzelchats) liegt lokal unter
+  `data/teams_export/` – nie committen. Stilprofil: `docs/STILPROFIL.md`
+  (kurz, „du“, „moin“, Angebot als Blöcke Artikel/EAN/Menge x/Preis).
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
   (EU-Region) und spricht ausschließlich über APIs mit den Systemen.
@@ -82,5 +85,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `dashboard/cockpit.html` – Seite des Dashboards „Ghostwriter Vertriebs-Cockpit“
   (https://claude.ai/artifact/8RveMqVctyypA3NCDRyHdQ, liest den Warenbestand live über
   Google Drive; die Regeln stehen dort als Berechnung). Bei Regeländerungen beide anpassen.
+- `agent/teams_file.py` – Teams-Datenexport (privates Teams) einlesen, Namen auflösen
+- `agent/profiles.py` – Kundenprofile (Marken, EANs) und passende Artikel, Angebotsentwurf in Marcs Format
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
