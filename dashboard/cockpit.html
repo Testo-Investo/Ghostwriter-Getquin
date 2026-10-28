@@ -1,0 +1,373 @@
+<meta name="dash-one-writer">
+<style>
+  #dash-root .gw { display: grid; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); }
+  #dash-root .gw-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  #dash-root .gw-head p { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); max-width: 70ch; }
+  #dash-root .gw-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+  #dash-root .gw-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+  #dash-root .gw-tile .lbl { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  #dash-root .gw-tile .num { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; margin-top: var(--cds-gap-xs); min-height: 1.3em; }
+  #dash-root .gw-tile .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-top: var(--cds-gap-xs); }
+  #dash-root .gw-grid { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+  #dash-root .gw-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  #dash-root .gw-card .note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 var(--cds-gap-md); }
+  #dash-root .gw-scroll { max-height: 26rem; overflow: auto; }
+  #dash-root table.gw-t { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+  #dash-root table.gw-t th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  #dash-root table.gw-t td { padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+  #dash-root table.gw-t .r { text-align: right; }
+  #dash-root .gw-hide-narrow { }
+  @media (max-width: 640px) { #dash-root .gw-hide-narrow { display: none; } }
+  #dash-root .gw-pill { display: inline-block; padding: 0 var(--cds-pad-sm); border-radius: 999px; border: 1px solid var(--color-border-line); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); white-space: nowrap; }
+  #dash-root .gw-pill.neu { color: var(--color-ok); border-color: currentColor; }
+  #dash-root .gw-search { width: 100%; max-width: 22rem; padding: var(--cds-pad-xs) var(--cds-pad-sm); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); font: inherit; margin-bottom: var(--cds-gap-sm); }
+  #dash-root .gw-chart { position: relative; min-height: 18rem; }
+  #dash-root .gw-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); }
+  #dash-root .gw-tip .k { color: var(--cds-text-secondary); }
+  #dash-root .gw-rules { margin: 0; padding-left: 1.1rem; display: grid; gap: var(--cds-gap-xs); }
+  #dash-root .gw-plan { display: grid; gap: var(--cds-gap-sm); margin: 0; padding: 0; list-style: none; }
+  #dash-root .gw-plan li { display: flex; gap: var(--cds-gap-sm); align-items: baseline; }
+  #dash-root .gw-fail { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-xs); color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: 6rem; }
+  #dash-root .gw-fail i { width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); display: inline-block; }
+  #dash-root [data-dash-source-state=empty] { color: transparent; }
+  #dash-root [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="gw">
+  <header class="gw-head" id="kopf">
+    <h1>Ghostwriter Vertriebs-Cockpit</h1>
+    <p>Was der Agent heute anbieten würde – live aus „Warenbestand (automated)“, nach deinen Regeln gefiltert und bepreist. <span data-draw="takeaway" data-source="kennzahlen">—</span></p>
+  </header>
+
+  <section class="gw-tiles" id="kennzahlen" aria-label="Kennzahlen">
+    <div class="gw-card gw-tile">
+      <div class="lbl">Anbietbare Artikel</div>
+      <div class="num dash-skeleton" data-draw="k-anbietbar" data-source="kennzahlen" data-field="anbietbar" data-row="0" data-fetchpriority="high">—</div>
+      <div class="sub">Verfügbar &gt; 0, nach allen Regeln</div>
+    </div>
+    <div class="gw-card gw-tile">
+      <div class="lbl">Neue Wareneingänge</div>
+      <div class="num dash-skeleton" data-draw="k-neu" data-source="kennzahlen" data-field="neu" data-row="0" data-fetchpriority="high">—</div>
+      <div class="sub">Letzte 7 Tage, stehen im Angebot oben</div>
+    </div>
+    <div class="gw-card gw-tile">
+      <div class="lbl">Angebotswert</div>
+      <div class="num dash-skeleton" data-draw="k-umsatz" data-source="kennzahlen" data-field="angebotswert" data-row="0">—</div>
+      <div class="sub">Verfügbare Menge × Angebotspreis</div>
+    </div>
+    <div class="gw-card gw-tile">
+      <div class="lbl">Warenwert zum EK (intern)</div>
+      <div class="num dash-skeleton" data-draw="k-ek" data-source="kennzahlen" data-field="warenwert_ek" data-row="0">—</div>
+      <div class="sub">Nur für dich, nie für Kunden</div>
+    </div>
+    <div class="gw-card gw-tile">
+      <div class="lbl">Rausgefiltert</div>
+      <div class="num dash-skeleton" data-draw="k-raus" data-source="kennzahlen" data-field="ausgeschlossen" data-row="0">—</div>
+      <div class="sub"><span data-draw="k-raus-detail" data-source="kennzahlen">—</span></div>
+    </div>
+  </section>
+
+  <section class="gw-card" id="neu-reingekommen">
+    <h2>Neu reingekommen</h2>
+    <p class="note">Wareneingang der letzten 7 Tage, Reihenfolge wie in der Liste. Diese Artikel bietet der Agent zuerst an – bei neuer Ware sofort.</p>
+    <div class="gw-scroll">
+      <table class="gw-t" data-source="neu" data-row-key="ean">
+        <thead><tr>
+          <th data-field="we">Eingang</th>
+          <th data-field="artikel">Artikel</th>
+          <th data-field="ean" class="gw-hide-narrow">EAN</th>
+          <th data-field="verfuegbar" class="r">Verfügbar</th>
+          <th data-field="preis" class="r">Preis</th>
+          <th data-field="marge" class="r gw-hide-narrow">Marge</th>
+        </tr></thead>
+        <tbody data-draw="neu-rows" data-source="neu"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="gw-grid">
+    <section class="gw-card" id="marken">
+      <h2>Angebotswert nach Marke</h2>
+      <p class="note">Top 12 Marken, verfügbare Menge × Angebotspreis.</p>
+      <div class="gw-chart" data-draw="marken-chart" data-source="marken"></div>
+    </section>
+    <section class="gw-card" id="regeln">
+      <h2>Deine Regeln</h2>
+      <p class="note">So filtert und bepreist der Agent jede Zeile.</p>
+      <ul class="gw-rules">
+        <li>Nur Artikel mit „Verfügbar“ größer 0.</li>
+        <li>Preis ist der letzte VK. Ohne letzten VK: ⌀ EK + 10 %.</li>
+        <li>Lag der letzte VK unter dem ⌀ EK, wird der Artikel nicht angeboten.</li>
+        <li>Microsoft Surface wird nie angeboten.</li>
+        <li>Der Kunde sieht Artikel, EAN, Menge und Preis. Niemals den EK.</li>
+        <li>Neu ist, was in den letzten 7 Tagen eingegangen ist.</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="gw-card" id="angebot">
+    <h2>Komplettes Angebot</h2>
+    <p class="note">Alle anbietbaren Artikel. Neue Wareneingänge oben, danach in Listenreihenfolge. EK und Marge sind intern.</p>
+    <input class="gw-search" id="gw-suche" type="search" placeholder="Artikel, Marke oder EAN suchen" aria-label="Angebot durchsuchen">
+    <div class="gw-scroll">
+      <table class="gw-t" data-source="angebot" data-row-key="ean">
+        <thead><tr>
+          <th data-field="status"></th>
+          <th data-field="artikel">Artikel</th>
+          <th data-field="ean" class="gw-hide-narrow">EAN</th>
+          <th data-field="verfuegbar" class="r">Verfügbar</th>
+          <th data-field="preis" class="r">Preis</th>
+          <th data-field="quelle" class="gw-hide-narrow">Preis aus</th>
+          <th data-field="ek" class="r gw-hide-narrow">⌀ EK</th>
+          <th data-field="marge" class="r gw-hide-narrow">Marge</th>
+        </tr></thead>
+        <tbody data-draw="angebot-rows" data-source="angebot"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="gw-card" id="agent">
+    <h2>Was der Agent tut</h2>
+    <p class="note">Dieser Bereich füllt sich, sobald der Agent schreibt. Er protokolliert jede Aktion, damit du alles nachvollziehen kannst.</p>
+    <ul class="gw-plan">
+      <li><span class="gw-pill">bald</span> Gesendete Angebote pro Kunde, mit Uhrzeit und Inhalt</li>
+      <li><span class="gw-pill">bald</span> Antworten und Verhandlungen, mit Dauer bis zur Antwort</li>
+      <li><span class="gw-pill">bald</span> Freigabe-Warteschlange: Entwürfe, die auf dein OK warten</li>
+      <li><span class="gw-pill">bald</span> Angelegte Aufträge in weclapp und Umsatz durch den Agenten</li>
+      <li><span class="gw-pill">bald</span> Aktivität pro Tag: wie oft und wie lange mit welchem Kunden</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  // Antwort von Google Drive: {content: base64-CSV, ...} → Zeilen des Blatts "Warenbestand"
+  dash.loader('bestand', {
+    description: 'CSV-Export des Blatts „Warenbestand“ als Zeilen; deutsche Zahlen und Daten umgewandelt',
+    fn: ({ answer }) => {
+      const a = typeof answer === 'string' ? JSON.parse(answer) : answer;
+      if (!a || typeof a.content !== 'string') throw new Error('Keine Datei-Inhalte in der Antwort von Google Drive');
+      const bin = atob(a.content);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const text = new TextDecoder('utf-8').decode(bytes);
+      const rows = [];
+      let row = [], cell = '', q = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (q) {
+          if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+          else if (c === '"') q = false;
+          else cell += c;
+        } else if (c === '"') q = true;
+        else if (c === ',') { row.push(cell); cell = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(cell); rows.push(row); row = []; cell = '';
+        } else cell += c;
+      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      const head = rows.shift() || [];
+      const col = (name) => head.indexOf(name);
+      const euro = (v) => { const s = (v || '').replace(/[^\d,.-]/g, ''); return s ? Number(s.replace(/\./g, '').replace(',', '.')) : null; };
+      const int = (v) => { const s = (v || '').replace(/[^\d-]/g, ''); return s && s !== '-' ? Number(s) : 0; };
+      const day = (v) => { const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec((v || '').trim()); return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null; };
+      const iH = col('Hersteller'), iA = col('Artikel'), iE = col('EAN'), iEK = col('⌀ EK'), iVK = col('Letzter VK'), iV = col('Verfügbar'), iW = col('Letzter WE');
+      if (iA < 0 || iV < 0) throw new Error('Spalten „Artikel“ oder „Verfügbar“ fehlen im Blatt');
+      const out = [];
+      rows.forEach((r) => {
+        if (!r[iA] || !r[iA].trim()) return;
+        out.push({
+          position: out.length + 1,
+          hersteller: (r[iH] || '').trim(),
+          artikel: r[iA].trim(),
+          ean: (r[iE] || '').trim(),
+          ek: euro(r[iEK]),
+          vk_last: euro(r[iVK]),
+          verfuegbar: int(r[iV]),
+          we: day(r[iW]),
+        });
+      });
+      return { columns: ['position', 'hersteller', 'artikel', 'ean', 'ek', 'vk_last', 'verfuegbar', 'we'], rows: out };
+    },
+  });
+
+  // Marcs Regeln: Verfügbar > 0, Preis = letzter VK (sonst EK + 10 %), nie unter EK, kein Surface, neu = WE der letzten 7 Tage
+  dash.calc('angebot', {
+    inputs: ['bestand'],
+    title: 'Angebot nach Marcs Regeln',
+    description: 'Verfügbar > 0, Preis = letzter VK oder ⌀ EK + 10 %, ohne Artikel unter EK, ohne EK und ohne Surface; neu = Eingang bis 7 Tage vor dem neuesten Wareneingang der Liste.',
+    fn: (bestand) => {
+      const surface = /\bsurface\b|\b(pro|laptop|book|studio|go)\s*\d/i;
+      const newest = bestand.reduce((m, r) => (r.we && r.we > m ? r.we : m), '');
+      const cut = newest ? new Date(Date.parse(newest) - 7 * 864e5).toISOString().slice(0, 10) : '';
+      const rows = [];
+      bestand.forEach((r) => {
+        if (!(r.verfuegbar > 0) || !r.ek) return;
+        if (r.hersteller.toLowerCase() === 'microsoft' && surface.test(r.artikel)) return;
+        let preis, quelle;
+        if (r.vk_last) {
+          if (r.vk_last < r.ek) return;
+          preis = r.vk_last; quelle = 'letzter VK';
+        } else {
+          preis = Math.ceil(r.ek * 1.1 * 100) / 100; quelle = 'EK + 10 %';
+        }
+        const neu = !!(r.we && cut && r.we >= cut);
+        rows.push({ status: neu ? 'neu' : '', artikel: r.artikel, hersteller: r.hersteller, ean: r.ean, verfuegbar: r.verfuegbar, preis, quelle, ek: r.ek, marge: (preis - r.ek) / preis, we: r.we, position: r.position, neu });
+      });
+      rows.sort((a, b) => (b.neu - a.neu) || (a.position - b.position));
+      return rows;
+    },
+  });
+
+  dash.calc('neu', {
+    inputs: ['angebot'],
+    title: 'Neue Wareneingänge',
+    description: 'Anbietbare Artikel mit Wareneingang in den letzten 7 Tagen, in Listenreihenfolge.',
+    fn: (angebot) => angebot.filter((r) => r.neu),
+  });
+
+  dash.calc('kennzahlen', {
+    inputs: ['bestand', 'angebot'],
+    title: 'Kennzahlen des Angebots',
+    description: 'Anzahl anbietbar und neu, Angebotswert (Menge × Preis), Warenwert zum EK und wie viele verfügbare Artikel aus welchem Grund rausfallen.',
+    fn: (bestand, angebot) => {
+      const surface = /\bsurface\b|\b(pro|laptop|book|studio|go)\s*\d/i;
+      const verf = bestand.filter((r) => r.verfuegbar > 0);
+      const isSurface = (r) => r.hersteller.toLowerCase() === 'microsoft' && surface.test(r.artikel);
+      const unter_ek = verf.filter((r) => r.ek && r.vk_last && r.vk_last < r.ek && !isSurface(r)).length;
+      const ohne_ek = verf.filter((r) => !r.ek && !isSurface(r)).length;
+      const surf = verf.filter(isSurface).length;
+      return [{
+        anbietbar: angebot.length,
+        neu: angebot.filter((r) => r.neu).length,
+        angebotswert: angebot.reduce((s, r) => s + r.verfuegbar * r.preis, 0),
+        warenwert_ek: angebot.reduce((s, r) => s + r.verfuegbar * r.ek, 0),
+        ausgeschlossen: verf.length - angebot.length,
+        unter_ek, ohne_ek, surface: surf,
+      }];
+    },
+  });
+
+  dash.calc('marken', {
+    inputs: ['angebot'],
+    title: 'Angebotswert nach Marke',
+    description: 'Summe aus verfügbarer Menge × Angebotspreis je Hersteller, die 12 größten.',
+    fn: (angebot) => {
+      const m = new Map();
+      angebot.forEach((r) => {
+        const k = r.hersteller || 'Ohne Marke';
+        const o = m.get(k) || { hersteller: k, wert: 0, artikel: 0 };
+        o.wert += r.verfuegbar * r.preis; o.artikel += 1; m.set(k, o);
+      });
+      return [...m.values()].sort((a, b) => b.wert - a.wert).slice(0, 12);
+    },
+  });
+</script>
+
+<script>
+  const eur = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+  const eurK = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', notation: 'compact', maximumFractionDigits: 1 });
+  const num = new Intl.NumberFormat('de-DE');
+  const pct = new Intl.NumberFormat('de-DE', { style: 'percent', maximumFractionDigits: 1 });
+  const dmy = (iso) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.` : '');
+
+  const fail = (el) => {
+    const d = document.createElement('div'); d.className = 'gw-fail';
+    d.append(document.createElement('i'), document.createTextNode('Failed to load'));
+    el.replaceChildren(d);
+  };
+
+  const tile = (name, field, fmt) => dash.draw(name, (el) => {
+    const k = dash.data('kennzahlen');
+    if (k.status === 'ok' && k.data.length) { el.classList.remove('dash-skeleton'); el.textContent = fmt(k.data[0][field]); }
+    else { if (k.status === 'error') el.classList.remove('dash-skeleton'); el.textContent = '—'; }
+  });
+  tile('k-anbietbar', 'anbietbar', (v) => num.format(v));
+  tile('k-neu', 'neu', (v) => num.format(v));
+  tile('k-umsatz', 'angebotswert', (v) => eurK.format(v));
+  tile('k-ek', 'warenwert_ek', (v) => eurK.format(v));
+  tile('k-raus', 'ausgeschlossen', (v) => num.format(v));
+
+  dash.draw('k-raus-detail', (el) => {
+    const k = dash.data('kennzahlen');
+    if (k.status !== 'ok' || !k.data.length) { el.textContent = '—'; return; }
+    const r = k.data[0];
+    el.textContent = `${r.unter_ek} unter EK · ${r.ohne_ek} ohne EK · ${r.surface} Surface`;
+  });
+
+  dash.draw('takeaway', (el) => {
+    const k = dash.data('kennzahlen');
+    if (k.status !== 'ok' || !k.data.length) { el.textContent = '—'; return; }
+    const r = k.data[0];
+    el.textContent = `Heute ${num.format(r.anbietbar)} Artikel im Angebot, davon ${num.format(r.neu)} frisch eingegangen.`;
+  });
+
+  const td = (text, cls) => { const c = document.createElement('td'); c.textContent = text; if (cls) c.className = cls; return c; };
+
+  dash.draw('neu-rows', (tb) => {
+    const d = dash.data('neu');
+    if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    tb.replaceChildren(...d.data.map((r) => {
+      const tr = document.createElement('tr');
+      tr.append(td(dmy(r.we)), td(r.artikel), td(r.ean, 'gw-hide-narrow'), td(num.format(r.verfuegbar), 'r'), td(eur.format(r.preis), 'r'), td(pct.format(r.marge), 'r gw-hide-narrow'));
+      return tr;
+    }));
+  });
+
+  let suche = '';
+  document.querySelectorAll('#gw-suche').forEach((inp) => inp.addEventListener('input', () => { suche = inp.value.trim().toLowerCase(); dash.draw('angebot-rows'); }));
+
+  dash.draw('angebot-rows', (tb) => {
+    const d = dash.data('angebot');
+    if (d.status !== 'ok') { tb.replaceChildren(); return; }
+    const rows = suche ? d.data.filter((r) => `${r.artikel} ${r.hersteller} ${r.ean}`.toLowerCase().includes(suche)) : d.data;
+    tb.replaceChildren(...rows.map((r) => {
+      const tr = document.createElement('tr');
+      const s = document.createElement('td');
+      if (r.neu) { const p = document.createElement('span'); p.className = 'gw-pill neu'; p.textContent = 'neu'; s.append(p); }
+      tr.append(s, td(r.artikel), td(r.ean, 'gw-hide-narrow'), td(num.format(r.verfuegbar), 'r'), td(eur.format(r.preis), 'r'), td(r.quelle, 'gw-hide-narrow'), td(eur.format(r.ek), 'r gw-hide-narrow'), td(pct.format(r.marge), 'r gw-hide-narrow'));
+      return tr;
+    }));
+  });
+
+  dash.draw('marken-chart', (el) => {
+    const d = dash.data('marken');
+    if (d.status === 'error') { fail(el); return; }
+    if (d.status !== 'ok') { el.replaceChildren(); return; }
+    const data = d.data;
+    const W = Math.max(280, el.clientWidth || 400), rowH = 24, top = 4;
+    const H = top + data.length * rowH + 4;
+    const svg = d3.create('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).style('display', 'block').style('overflow', 'visible');
+    const meas = svg.append('g').attr('font-size', 'var(--cds-font-size-caption)').style('font-family', 'var(--font-anthropic-sans)');
+    el.replaceChildren(svg.node());
+    let labelW = 0;
+    data.forEach((r) => { const t = meas.append('text').text(r.hersteller); labelW = Math.max(labelW, t.node().getComputedTextLength()); t.remove(); });
+    let valW = 0;
+    data.forEach((r) => { const t = meas.append('text').text(eurK.format(r.wert)); valW = Math.max(valW, t.node().getComputedTextLength()); t.remove(); });
+    const left = Math.ceil(labelW) + 10, right = Math.ceil(valW) + 10;
+    const x = d3.scaleLinear([0, d3.max(data, (r) => r.wert) || 1], [left, Math.max(left + 20, W - right)]);
+    const y = d3.scaleBand(data.map((r) => r.hersteller), [top, H - 4]).padding(0.25);
+    const g = svg.append('g').style('font-family', 'var(--font-anthropic-sans)').attr('font-size', 'var(--cds-font-size-caption)');
+    g.selectAll('rect').data(data).join('rect')
+      .attr('x', left).attr('y', (r) => y(r.hersteller)).attr('height', y.bandwidth())
+      .attr('width', (r) => Math.max(1, x(r.wert) - left)).attr('rx', 3)
+      .attr('fill', (r, i) => (i === 0 ? dash.colors[0] : 'var(--cds-chart-muted)'));
+    g.selectAll('text.l').data(data).join('text').attr('class', 'l')
+      .attr('x', left - 8).attr('y', (r) => y(r.hersteller) + y.bandwidth() / 2).attr('dy', '0.35em')
+      .attr('text-anchor', 'end').attr('fill', 'var(--color-fg)').text((r) => r.hersteller);
+    g.selectAll('text.v').data(data).join('text').attr('class', 'v')
+      .attr('x', (r) => x(r.wert) + 6).attr('y', (r) => y(r.hersteller) + y.bandwidth() / 2).attr('dy', '0.35em')
+      .attr('fill', 'var(--color-fg-muted)').style('font-variant-numeric', 'tabular-nums').text((r) => eurK.format(r.wert));
+    const tip = document.createElement('div'); tip.className = 'gw-tip'; tip.hidden = true; el.append(tip);
+    g.selectAll('rect')
+      .on('pointermove', (ev, r) => {
+        const k = document.createElement('div'); k.className = 'k'; k.textContent = r.hersteller;
+        const v = document.createElement('div'); v.textContent = `${eur.format(r.wert)} · ${num.format(r.artikel)} Artikel`;
+        tip.replaceChildren(k, v); tip.hidden = false;
+        const b = el.getBoundingClientRect();
+        const px = Math.min(ev.clientX - b.left + 12, b.width - tip.offsetWidth - 4);
+        tip.style.left = `${Math.max(0, px)}px`; tip.style.top = `${ev.clientY - b.top + 12}px`;
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+  });
+</script>

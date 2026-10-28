@@ -79,5 +79,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/stock.py` – Warenbestand parsen und filtern (Verfügbar > 0)
 - `agent/watch.py` – stündliche Snapshots, Änderungen (neu, aufgestockt, geht weg, Preis), neue Wareneingänge
 - `agent/offer.py` – Angebot bauen (neue Wareneingänge oben) und Sofort-Angebot bei neuer Ware
+- `dashboard/cockpit.html` – Seite des Dashboards „Ghostwriter Vertriebs-Cockpit“
+  (https://claude.ai/artifact/8RveMqVctyypA3NCDRyHdQ, liest den Warenbestand live über
+  Google Drive; die Regeln stehen dort als Berechnung). Bei Regeländerungen beide anpassen.
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
