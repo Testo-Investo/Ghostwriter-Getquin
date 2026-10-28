@@ -50,7 +50,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Marcs Hauptziel: jeden Morgen pro Kunde ein frisches, kopierfertiges Angebot.**
   Gleiche Produkte für mehrere Kunden sind ausdrücklich ok. Umsetzung im Dashboard
   („Angebote für heute“): je Kunde bis 8 passende Artikel (neu zuerst), aufgefüllt
-  mit neuen Wareneingängen auf 10, volle verfügbare Menge. Kundenprofile kommen
+  mit neuen Wareneingängen auf 10, volle verfügbare Menge. Identische Angebote
+  werden zu einer Karte mit allen Kundennamen zusammengefasst. Kundenprofile kommen
   aus `python -m agent.cli profiles` → `data/kunden.json` (als Datei ins Dashboard
   hochgeladen; nach jedem neuen Teams-Export neu erzeugen und ersetzen).
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).

@@ -51,7 +51,7 @@
 
   <section class="gw-card" id="angebote-heute">
     <h2>Angebote für heute</h2>
-    <p class="note">Pro Kunde ein fertiges Angebot in deinem Format, jeden Morgen frisch aus dem aktuellen Bestand. Zuerst, was zum Kunden passt (danach gefragt, seine Marken, schon mal angeboten), dann neue Wareneingänge – die bekommen alle. Kopieren und in Teams einfügen.</p>
+    <p class="note">Pro Kunde ein fertiges Angebot in deinem Format, jeden Morgen frisch aus dem aktuellen Bestand. Zuerst, was zum Kunden passt (danach gefragt, seine Marken, schon mal angeboten), dann neue Wareneingänge – die bekommen alle. Haben mehrere Kunden dasselbe Angebot, steht es nur einmal da, mit allen Namen: einmal kopieren, bei jedem einfügen.</p>
     <div class="gw-offers" data-draw="kunden-angebote" data-source="kundenangebote"></div>
   </section>
 
@@ -352,20 +352,30 @@
     const d = dash.data('kundenangebote');
     if (d.status === 'error') { fail(el); return; }
     if (d.status !== 'ok') { el.replaceChildren(); return; }
-    el.replaceChildren(...d.data.filter((r) => r.artikel > 0).map((r) => {
+    // Kunden mit identischem Angebot teilen sich eine Karte: einmal kopieren, bei jedem einfügen
+    const groups = new Map();
+    d.data.filter((r) => r.artikel > 0).forEach((r) => {
+      const g = groups.get(r.text) || { text: r.text, kunden: [], passend: r.passend, artikel: r.artikel, marken: r.marken, letzte: r.letzte };
+      g.kunden.push(r.kunde); groups.set(r.text, g);
+    });
+    el.replaceChildren(...[...groups.values()].map((g) => {
       const card = document.createElement('article'); card.className = 'gw-card gw-offer';
       const head = document.createElement('div'); head.className = 'gw-offer-head';
-      const name = document.createElement('div'); name.className = 'gw-offer-name'; name.textContent = r.kunde;
-      const when = document.createElement('div'); when.className = 'gw-offer-meta'; when.textContent = `zuletzt ${dmy(r.letzte)}`;
+      const name = document.createElement('div'); name.className = 'gw-offer-name';
+      name.textContent = g.kunden.length > 1 ? `${g.kunden.length} Kunden, gleiches Angebot` : g.kunden[0];
+      const when = document.createElement('div'); when.className = 'gw-offer-meta';
+      when.textContent = g.kunden.length > 1 ? '' : `zuletzt ${dmy(g.letzte)}`;
       head.append(name, when);
       const meta = document.createElement('div'); meta.className = 'gw-offer-meta';
-      meta.textContent = `${r.passend} passend · ${r.artikel} Artikel` + (r.marken ? ` · ${r.marken}` : '');
-      const pre = document.createElement('pre'); pre.textContent = r.text;
+      meta.textContent = g.kunden.length > 1
+        ? `Einfügen bei: ${g.kunden.join(', ')}`
+        : `${g.passend} passend · ${g.artikel} Artikel` + (g.marken ? ` · ${g.marken}` : '');
+      const pre = document.createElement('pre'); pre.textContent = g.text;
       const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'gw-copy'; btn.textContent = 'Kopieren';
       btn.addEventListener('click', () => {
         const ok = () => { btn.textContent = 'Kopiert'; btn.classList.add('done'); setTimeout(() => { btn.textContent = 'Kopieren'; btn.classList.remove('done'); }, 2000); };
         const pick = () => { const sel = window.getSelection(); const rg = document.createRange(); rg.selectNodeContents(pre); sel.removeAllRanges(); sel.addRange(rg); btn.textContent = 'Markiert – Strg+C'; };
-        try { navigator.clipboard.writeText(r.text).then(ok, pick); } catch (e) { pick(); }
+        try { navigator.clipboard.writeText(g.text).then(ok, pick); } catch (e) { pick(); }
       });
       card.append(head, meta, pre, btn);
       return card;
