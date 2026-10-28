@@ -54,6 +54,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   werden zu einer Karte mit allen Kundennamen zusammengefasst. Kundenprofile kommen
   aus `python -m agent.cli profiles` → `data/kunden.json` (als Datei ins Dashboard
   hochgeladen; nach jedem neuen Teams-Export neu erzeugen und ersetzen).
+- **E-Mail-Angebote (nächster Schritt):** Marc verschickt heute Serienbriefe mit
+  Outlook + Excel-Liste an Webshop-Kunden; Postfach liegt bei **IONOS**. Ersatz:
+  `agent/mailer.py` – eine eigene Mail pro Empfänger (kein BCC), Vorschau zuerst,
+  Testversand an Marc, dann Versand mit Pause zwischen den Mails, Abmeldeliste.
+  SMTP (smtp.ionos.de:587) ist aus der Claude-Cloud-Umgebung nicht erreichbar →
+  Versand vom Server oder Marcs Rechner; Zugangsdaten nur als Secret dort.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
   (EU-Region) und spricht ausschließlich über APIs mit den Systemen.
@@ -94,5 +100,6 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Google Drive; die Regeln stehen dort als Berechnung). Bei Regeländerungen beide anpassen.
 - `agent/teams_file.py` – Teams-Datenexport (privates Teams) einlesen, Namen auflösen
 - `agent/profiles.py` – Kundenprofile (Marken, EANs) und passende Artikel, Angebotsentwurf in Marcs Format
+- `agent/mailer.py` – Angebots-Serienmail über IONOS (Vorschau, Test, Versand, Protokoll)
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)

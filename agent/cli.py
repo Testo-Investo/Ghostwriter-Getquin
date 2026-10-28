@@ -1,4 +1,10 @@
-"""Einstieg: python -m agent.cli <stock|watch|offer|profiles|whoami|catalog|export-chats>"""
+"""Einstieg: python -m agent.cli <befehl>
+
+  stock | watch | offer | profiles
+  mail-preview <empfaenger.csv|xlsx>
+  mail-send <empfaenger.csv|xlsx> [--test deine@adresse.de]
+  whoami | catalog | export-chats
+"""
 
 import json
 import os
@@ -9,6 +15,7 @@ from dotenv import load_dotenv
 
 from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
+from . import mailer
 from .profiles import brands_from_stock, build_profile, export_rows
 from .teams_file import load_chats
 from .offer import build_offer, instant_offer, render_text
@@ -28,7 +35,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"stock", "watch", "offer", "profiles", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "stock":
@@ -75,6 +82,17 @@ def main() -> None:
         rows = export_rows(profiles)
         Path("data/kunden.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1))
         print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
+        return
+    if cmd in ("mail-preview", "mail-send"):
+        current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
+        recipients = mailer.load_recipients(sys.argv[2])
+        mails = mailer.build_all(recipients, current, os.getenv("MAIL_FROM", "marc@example.de"), os.getenv("MAIL_NAME", "Marc Knieb"))
+        folder = mailer.write_preview(mails)
+        print(f"{len(mails)} Mails für {len(recipients)} Empfänger vorbereitet → {folder}/vorschau.html")
+        if cmd == "mail-send":
+            test_to = sys.argv[sys.argv.index("--test") + 1] if "--test" in sys.argv else None
+            log = mailer.send_all(mails, test_to)
+            print(("Testversand an " + test_to if test_to else "Versand an Kunden") + f" fertig → {log}")
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
