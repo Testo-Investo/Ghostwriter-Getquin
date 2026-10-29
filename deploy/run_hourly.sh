@@ -8,6 +8,12 @@ main() {
   cd /opt/ghostwriter
   local PY=.venv/bin/python
   git pull -q --ff-only   # Änderungen aus dem Chat automatisch übernehmen
+  # Zeitplan aus dem Repo übernehmen, falls er sich geändert hat (gilt ab dem nächsten Lauf)
+  if ! cmp -s deploy/ghostwriter.timer /etc/systemd/system/ghostwriter.timer; then
+    cp deploy/ghostwriter.timer /etc/systemd/system/ghostwriter.timer
+    systemctl daemon-reload
+    echo "Zeitplan aktualisiert: $(grep OnCalendar deploy/ghostwriter.timer)"
+  fi
   $PY -m agent.cli fetch-stock
   $PY -m agent.cli fetch-lists
   # Abwesenheitsnotizen wegsortieren, Rückläufer aus den Listen löschen – danach Listen neu holen

@@ -46,17 +46,7 @@ Type=oneshot
 WorkingDirectory=$APP
 ExecStart=$APP/deploy/run_hourly.sh
 UNIT
-cat > /etc/systemd/system/ghostwriter.timer <<UNIT
-[Unit]
-Description=Ghostwriter stündlich (Mo–Fr 7–18 Uhr)
-
-[Timer]
-OnCalendar=Mon..Fri 07..18:05
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-UNIT
+cp "$APP/deploy/ghostwriter.timer" /etc/systemd/system/ghostwriter.timer  # Zeitplan steht im Repo
 timedatectl set-timezone Europe/Berlin
 systemctl daemon-reload
 echo

@@ -75,12 +75,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   `config/signatur.txt` + `config/signatur_logo.png`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
   zum EZB-Tageskurs (aufgerundet), Lieferbedingung „ex works Germany“ für alle
   englischen Listen. **Ein Angebot am Tag (Marc, 29.10.: „nicht stündlich“)** →
-  `mail-neu`: Freigabe-Mail nur im Lauf um **9:05** (`ANGEBOT_UM`), Versand nach FREIGABE
-  beim nächsten Lauf (ab 10:05); Artikel, die noch in keiner Mail standen (Merkliste
+  `mail-neu`: Freigabe-Mail nur im Lauf um **9:30** (`ANGEBOT_UM`=9), Versand nach FREIGABE
+  beim nächsten Lauf (ab 10:30); Artikel, die noch in keiner Mail standen (Merkliste
   `data/mail_state.json`); höchstens eine Mail pro Tag. **Antwort „MIX“** → neue
   Freigabe-Mail mit gemischtem Angebot aus dem ganzen Bestand, auch ältere Artikel
   (`mailer.mix_items`, je Kunde bis zur Hälfte seine Marken, Zufall fest per Seed im
-  Antrag). Ohne neue Ware um 9:05 kommt automatisch ein Mix zur Freigabe.
+  Antrag). Ohne neue Ware um 9:30 kommt automatisch ein Mix zur Freigabe.
   **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht
@@ -94,7 +94,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   WhatsApp). Claude schreibt daraus `config/sonderangebot.json` mit neuer `id`
   (`{"id","anlass","artikel":[{"artikel","ean","menge","preis"}]}`, Preise € netto),
   zeigt Marc die Artikel zur Kontrolle, committet und pusht. Der Server schickt
-  beim nächsten Lauf (Mo–Fr 7–18 Uhr) eine Freigabe-Mail [SO-…]; nach FREIGABE geht
+  beim nächsten Lauf (Mo–Fr 8:30–16:30) eine Freigabe-Mail [SO-…]; nach FREIGABE geht
   es an alle Listen (alle bekommen dieselben Artikel, Dubai in $). Jede `id` nur
   einmal; zählt nicht gegen „eine Mail pro Tag“ (`agent/sonder.py`, `mail-sonder`).
   **Postfach (stündlich, `postfach`, Posteingang + Spam-Ordner – Rückläufer landen oft im Spam):** Abwesenheitsnotizen → IMAP-Ordner
@@ -117,7 +117,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   PowerShell `ssh root@2.31.88.120` ein; die Browser-Konsole kann nicht einfügen).
   Code unter `/opt/ghostwriter` (Clone dieses Repos), Einrichtung mit
   `deploy/install.sh` (fragt IONOS-Passwort unsichtbar ab → `.env`, chmod 600),
-  stündlicher Lauf per systemd-Timer `ghostwriter.timer` (Mo–Fr 7–18 Uhr,
+  stündlicher Lauf per systemd-Timer `ghostwriter.timer` (**Mo–Fr 8:30–16:30**, Marc: „8:30–17 Uhr reicht“,
+  Wochenende nichts; Zeitplan in `deploy/ghostwriter.timer`, der Server übernimmt ihn selbst;
   `deploy/run_hourly.sh`: fetch-stock, fetch-lists, postfach, mail-sonder, mail-neu). Google-Zugang auf dem
   Server über Dienstkonto, Schlüssel in `config/secrets/google.json` (nie committen).
 - **Zugangsdaten:** Niemals Passwörter im Chat oder im Repo. Azure-App +
