@@ -43,6 +43,7 @@ MAX_ARTIKEL = 10
 EZB_KURSE = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 STATE = Path("data/mail_state.json")    # welche EANs schon per Mail angekündigt wurden
 SIGNATUR = Path("config/signatur.txt")
+STOCK_CSV = Path(os.getenv("STOCK_CSV", "data/warenbestand.csv"))
 LOGO = Path("config/signatur_logo.png")  # Banner über der Signatur (optional)
 ABMELDUNGEN = Path("data/abmeldungen.txt")
 OUTBOX = Path("data/outbox")

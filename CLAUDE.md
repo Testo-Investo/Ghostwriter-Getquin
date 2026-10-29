@@ -81,7 +81,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht
   der Versand raus; „STOPP“ verwirft, ohne Antwort verfällt der Antrag nach 3 Tagen
-  (`agent/freigabe.py`). **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
+  (`agent/freigabe.py`). **Marc will Änderungen nur hier im Chat machen, nie per
+  Mail-Antwort** (Tippfehler-Risiko); die Antwort bleibt nur FREIGABE/STOPP. Eine
+  Freigabe gilt nur für genau den Code-Stand (git HEAD) und Bestand, den Marc gesehen
+  hat; nach jedem Push wird ein offener Antrag ungültig und neu verschickt. Der Server
+  holt Änderungen selbst (`git pull` am Anfang von `run_hourly.sh`).
+  **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
   Teams-Entwurf). Deutsch: „Preise netto, innerhalb Deutschlands frei Haus“,
   Ausland/Englisch: „Prices net, ex works Germany“.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).

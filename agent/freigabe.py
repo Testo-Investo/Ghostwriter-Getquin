@@ -3,8 +3,11 @@
 Ablauf im stündlichen Lauf (`mail-neu`):
 1. Neue Ware, kein offener Antrag → Freigabe-Mail an Marc: Artikel, Empfängerzahl je
    Liste und je Liste eine Beispiel-Mail im Anhang. Betreff enthält eine Kennung [GW-…].
-2. Marc antwortet mit „FREIGABE“ (oder „ok“/„ja“) → beim nächsten Lauf geht der
-   Versand an alle raus. Mit „STOPP“ wird der Antrag verworfen.
+2. Marc antwortet mit „FREIGABE“ (oder „ok“/„ja“) → beim nächsten Lauf geht genau der
+   angesehene Stand raus (Bestand von damals, nur ausverkaufte Artikel fallen weg und
+   Mengen werden auf den heutigen Bestand gekappt). Mit „STOPP“ wird verworfen.
+   Änderungen macht Marc nicht per Mail, sondern im Chat mit Claude; jede Code-Änderung
+   macht einen offenen Antrag ungültig und erzeugt eine neue Freigabe-Mail.
 3. Ohne Antwort verfällt der Antrag nach 3 Tagen; neue Ware erzeugt dann einen neuen.
 
 Die Antwort wird per IMAP aus Marcs IONOS-Postfach gelesen (gleiche Zugangsdaten).
@@ -15,11 +18,40 @@ import html
 import imaplib
 import os
 import secrets
+import shutil
+import subprocess
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 from email.utils import formataddr
 
 from . import mailer
+from .stock import StockItem, parse_stock_csv
+
+BESTAND_ANTRAG = mailer.STATE.parent / "antrag_warenbestand.csv"  # Stand, den Marc gesehen hat
+
+
+def code_version() -> str:
+    """Aktueller Code-Stand (git). Ändert sich, sobald Claude etwas an Texten/Regeln ändert."""
+    try:
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unbekannt"
+
+
+def approved_stock(current: list[StockItem]) -> list[StockItem]:
+    """Genau der Bestand, den Marc freigegeben hat – Preise und Artikel wie angesehen.
+
+    Nur zur Sicherheit gegen Überverkauf: was inzwischen ausverkauft ist, fällt raus,
+    und die Menge wird auf den heutigen Bestand gekappt."""
+    jetzt = {i.ean: i for i in current}
+    out = []
+    for item in parse_stock_csv(BESTAND_ANTRAG.read_text()):
+        neu = jetzt.get(item.ean)
+        if neu is None or neu.verfuegbar <= 0:
+            continue
+        out.append(replace(item, verfuegbar=min(item.verfuegbar, neu.verfuegbar)))
+    return out
 
 IMAP_HOST = "imap.ionos.de"
 GUELTIG_TAGE = 3
@@ -42,6 +74,8 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list]) -> 
         "Antworte einfach auf diese Mail:\n"
         "  FREIGABE  → wird spätestens in einer Stunde verschickt\n"
         "  STOPP     → wird verworfen\n\n"
+        "Etwas ändern? Nicht hier antworten, sondern Claude im Chat sagen. Danach kommt\n"
+        "automatisch eine neue Freigabe-Mail mit der geänderten Fassung – diese hier gilt dann nicht mehr.\n\n"
         f"Ohne Antwort verfällt der Antrag nach {GUELTIG_TAGE} Tagen.\n"
         "Im Anhang je Liste eine Beispiel-Mail. Darunter das erste Beispiel so, wie der Kunde es sieht.\n"
     )
@@ -62,7 +96,9 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list]) -> 
         msg.add_attachment(bytes(mails[0][1]), maintype="application", subtype="octet-stream",
                            filename=f"Beispiel {name}.eml")
     mailer.send_raw(msg)
-    state["antrag"] = {"kennung": kennung, "eans": sorted(eans), "erstellt": datetime.now().isoformat(timespec="minutes")}
+    shutil.copyfile(mailer.STOCK_CSV, BESTAND_ANTRAG)
+    state["antrag"] = {"kennung": kennung, "eans": sorted(eans), "version": code_version(),
+                       "erstellt": datetime.now().isoformat(timespec="minutes")}
     mailer.save_state(state)
     return kennung
 

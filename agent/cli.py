@@ -116,13 +116,14 @@ def main() -> None:
         name = os.getenv("MAIL_NAME", "Marc Knieb")
         signatur = mailer.SIGNATUR.read_text() if mailer.SIGNATUR.exists() else ""
 
-        def build(neu_eans):
+        def build(neu_eans, stock=None):
+            stock = current if stock is None else stock
             seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
             out = {}
             for liste in args:
                 recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
                 seen |= {r.email for r in recipients}
-                out[Path(liste).stem] = mailer.build_all(recipients, current, absender, name, neu_eans, signatur)
+                out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur)
             return out
 
         def send(by_list):
@@ -141,11 +142,16 @@ def main() -> None:
 
         state = mailer.load_state()
         antrag = state.get("antrag")
+        if antrag and antrag.get("version") != freigabe.code_version():
+            # Texte/Regeln wurden geändert, seit Marc die Mail gesehen hat → alte Freigabe gilt nicht
+            state.pop("antrag"); mailer.save_state(state)
+            print(f"Freigabe {antrag['kennung']} ist veraltet (Änderungen seitdem) – neue Freigabe-Mail folgt.")
+            antrag = None
         if antrag:
             antwort = freigabe.check_answer(antrag["kennung"])
             if antwort == "ja":
                 eans = set(antrag["eans"])
-                send(build(eans))
+                send(build(eans, freigabe.approved_stock(current)))  # genau der angesehene Stand
                 if "--vorschau" not in flags and not test_to:
                     mailer.mark_announced(state, eans)
                 print(f"Freigabe {antrag['kennung']} erhalten – verschickt.")
