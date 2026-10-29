@@ -277,6 +277,19 @@ def write_preview(mails: list[Mail], name: str = "") -> Path:
     return folder
 
 
+def smtp_test(to: str) -> None:
+    """Eine kurze Testmail – prüft Zugangsdaten und ob der Server IONOS erreicht."""
+    msg = EmailMessage()
+    msg["Subject"] = "Ghostwriter: Testmail vom Server"
+    msg["From"] = formataddr((os.getenv("MAIL_NAME", "Marc Knieb"), os.environ["MAIL_FROM"]))
+    msg["To"] = to
+    msg.set_content("Wenn du das liest, kann der Server über IONOS Mails verschicken.")
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
+        smtp.starttls(context=ssl.create_default_context())
+        smtp.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
+        smtp.send_message(msg)
+
+
 def send_all(mails: list[Mail], test_to: str | None = None) -> Path:
     """Verschickt einzeln über IONOS. Mit test_to geht alles an diese Adresse statt an die Kunden."""
     user, password = os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"]
