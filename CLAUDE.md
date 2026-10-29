@@ -61,7 +61,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   SMTP (smtp.ionos.de:587) ist aus der Claude-Cloud-Umgebung nicht erreichbar →
   Versand vom Server oder Marcs Rechner; Zugangsdaten nur als Secret dort.
   Marcs vier Serienbrief-Listen (deutsch, englisch, englisch Messe, Dubai; 182
-  Adressen) liegen lokal unter `data/mailinglisten/` – nie committen. Englisch,
+  Adressen) liegen als **Google-Tabellen im Drive-Ordner „Ghostwriter
+  Mailinglisten“** (ID `1Wb8dHpE8gImBG9gGiCrhrp5EoQKkJ3Vq`, mit dem Dienstkonto
+  `ghostwriter-leser@psyched-ray-513112-i7.iam.gserviceaccount.com` geteilt).
+  Marc pflegt sie nur noch dort; `fetch-lists` holt sie vor jedem Versand nach
+  `data/mailinglisten/` (nie committen). Dubai-Liste: Namen/Adressen teils
+  verrutscht → Anrede ohne Namen, bis Marc sie korrigiert. Englisch,
   wenn der Dateiname „engl“ enthält; Spalte „Produkt(e)“ = Marken/Kategorien.
   **Marcs Vorgaben:** Absender **marc@neobution.com**, Signatur folgt (→
   `config/signatur.txt` + `config/signatur_logo.png`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
