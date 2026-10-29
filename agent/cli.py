@@ -11,6 +11,8 @@
       nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
   mail-sonder <liste.xlsx> [weitere Listen …]
       Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
+  postfach <liste.xlsx> [weitere Listen …]
+      Abwesenheitsnotizen wegsortieren, Rückläufer-Adressen aus den Listen löschen
   whoami | catalog | export-chats
 """
 
@@ -44,7 +46,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "mail-sonder", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "mail-sonder", "postfach", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "fetch-stock":
@@ -55,6 +57,17 @@ def main() -> None:
         from .gsheet import fetch_mailing_lists
         for path in fetch_mailing_lists():
             print(f"  {path}")
+        return
+    if cmd == "postfach":
+        from . import postfach
+        ergebnis = postfach.aufraeumen([Path(a) for a in sys.argv[2:]])
+        print(f"Postfach: {ergebnis['abwesend']} Abwesenheitsnotizen weggeräumt, "
+              f"{len(ergebnis['geloescht'])} unzustellbare Adressen gelöscht.")
+        for adresse, liste, grund in ergebnis["geloescht"]:
+            print(f"  {adresse} ({liste}): {grund}")
+        if ergebnis["fehler"]:
+            print(f"Löschen in den Listen fehlgeschlagen ({ergebnis['fehler']}) – gesperrt sind trotzdem: "
+                  + ", ".join(ergebnis["gesperrt"]))
         return
     if cmd == "smtp-test":
         mailer.smtp_test(os.environ["MAIL_FROM"])
@@ -128,13 +141,17 @@ def main() -> None:
                 out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste)
             return out
 
-        def send(by_list):
+        def send(by_list, was="Das Angebot"):
+            ergebnis = {}
             for stem, mails in by_list.items():
                 folder = mailer.write_preview(mails, stem)
                 print(f"{stem}: {len(mails)} Mails → {folder}/vorschau.html")
                 if not ("--vorschau" in flags):
-                    log = mailer.send_all(mails, test_to)
+                    log, ok, fehler = mailer.send_all(mails, test_to)
+                    ergebnis[stem] = (ok, len(mails), fehler)
                     print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
+            if ergebnis and not test_to:
+                mailer.versand_bericht(was, ergebnis)  # Info an Marc, dass alles raus ist
 
         if cmd == "mail-sonder":
             angebot = sonder.load()
@@ -152,7 +169,7 @@ def main() -> None:
             if antrag:
                 antwort = freigabe.check_answer(antrag["kennung"])
                 if antwort == "ja":
-                    send(build(None, feste=artikel))
+                    send(build(None, feste=artikel), was="Das Sonderangebot")
                 if antwort in ("ja", "nein"):
                     erledigt.append(sid); state.pop("sonder_antrag"); mailer.save_state(state)
                     print(f"Sonderangebot {sid}: {'verschickt' if antwort == 'ja' else 'verworfen'}.")

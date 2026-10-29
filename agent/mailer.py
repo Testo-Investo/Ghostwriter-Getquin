@@ -46,6 +46,7 @@ SIGNATUR = Path("config/signatur.txt")
 STOCK_CSV = Path(os.getenv("STOCK_CSV", "data/warenbestand.csv"))
 LOGO = Path("config/signatur_logo.png")  # Banner über der Signatur (optional)
 ABMELDUNGEN = Path("data/abmeldungen.txt")
+UNZUSTELLBAR = Path("data/unzustellbar.txt")  # Rückläufer, von postfach.py gepflegt
 OUTBOX = Path("data/outbox")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
 
@@ -101,7 +102,8 @@ class Recipient:
     waehrung: str = "EUR"
 
 
-def load_recipients(path: str | Path, sprache: str | None = None) -> list[Recipient]:
+def load_recipients(path: str | Path, sprache: str | None = None, keine_sperre: bool = False) -> list[Recipient]:
+    """Empfänger einer Liste; abgemeldete und unzustellbare Adressen fallen raus (außer keine_sperre)."""
     path = Path(path)
     sprache = sprache or ("en" if "engl" in path.name.lower() else "de")
     waehrung = "USD" if "dubai" in path.name.lower() else "EUR"  # Dubai: Dollar zum Tageskurs
@@ -116,7 +118,10 @@ def load_recipients(path: str | Path, sprache: str | None = None) -> list[Recipi
                                       col("e-mail", "email", "mail"), col("marken", "marke", "produkte", "produkt"))
     if i_mail is None:
         raise ValueError("Spalte „E-Mail“ fehlt in der Empfängerliste")
-    blocked = {l.strip().lower() for l in ABMELDUNGEN.read_text().splitlines()} if ABMELDUNGEN.exists() else set()
+    blocked = set()
+    for sperre in () if keine_sperre else (ABMELDUNGEN, UNZUSTELLBAR):
+        if sperre.exists():
+            blocked |= {l.strip().lower() for l in sperre.read_text().splitlines()}
     out, seen = [], set()
     for r in rows[1:]:
         get = lambda i: r[i] if i is not None and i < len(r) else ""
@@ -313,8 +318,11 @@ def smtp_test(to: str) -> None:
         smtp.send_message(msg)
 
 
-def send_all(mails: list[Mail], test_to: str | None = None) -> Path:
-    """Verschickt einzeln über IONOS. Mit test_to geht alles an diese Adresse statt an die Kunden."""
+def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, list[tuple[str, str]]]:
+    """Verschickt einzeln über IONOS. Mit test_to geht alles an diese Adresse statt an die Kunden.
+
+    Gibt (Protokoll, Anzahl gesendet, [(adresse, fehler)]) zurück."""
+    ok, fehler = 0, []
     user, password = os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"]
     log = OUTBOX / f"versand_{date.today().isoformat()}.csv"
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -332,9 +340,30 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> Path:
             try:
                 smtp.send_message(msg)
                 status = "test" if test_to else "gesendet"
+                ok += 1
             except smtplib.SMTPException as e:
                 status = f"fehler: {e}"
+                fehler.append((r.email, str(e)[:160]))
             w.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), r.firma, r.email, msg["Subject"], n, status])
             f.flush()
             time.sleep(PAUSE_SEKUNDEN)
-    return log
+    return log, ok, fehler
+
+
+def versand_bericht(was: str, ergebnis: dict[str, tuple[int, int, list]]) -> None:
+    """Info an Marc, sobald alles raus ist: je Liste gesendet / gesamt, dazu Fehler."""
+    gesendet = sum(e[0] for e in ergebnis.values())
+    gesamt = sum(e[1] for e in ergebnis.values())
+    msg = EmailMessage()
+    msg["Subject"] = f"Ghostwriter: {was} verschickt – {gesendet} von {gesamt} Mails raus"
+    msg["From"] = formataddr(("Ghostwriter", os.environ["MAIL_FROM"]))
+    msg["To"] = os.getenv("FREIGABE_AN", os.environ["MAIL_FROM"])
+    zeilen = "\n".join(f"  {name}: {ok} von {n}" for name, (ok, n, _) in ergebnis.items())
+    fehler = [f"  {a}: {f}" for _, _, fl in ergebnis.values() for a, f in fl]
+    text = f"Moin Marc,\n\n{was} ist fertig verschickt ({time.strftime('%d.%m.%Y %H:%M')} Uhr):\n\n{zeilen}\n  Gesamt: {gesendet} von {gesamt}\n"
+    if fehler:
+        text += "\nNicht angenommen vom Mailserver:\n" + "\n".join(fehler) + "\n"
+    text += ("\nAbwesenheitsnotizen sortiert der Server in den Ordner „Abwesenheitsnotizen“.\n"
+             "Unzustellbare Adressen löscht er aus den Listen – dazu kommt eine eigene Info-Mail.\n")
+    msg.set_content(text)
+    send_raw(msg)

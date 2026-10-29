@@ -93,6 +93,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   beim nächsten Lauf (Mo–Fr 7–18 Uhr) eine Freigabe-Mail [SO-…]; nach FREIGABE geht
   es an alle Listen (alle bekommen dieselben Artikel, Dubai in $). Jede `id` nur
   einmal; zählt nicht gegen „eine Mail pro Tag“ (`agent/sonder.py`, `mail-sonder`).
+  **Postfach (stündlich, `postfach`):** Abwesenheitsnotizen → IMAP-Ordner
+  „Abwesenheitsnotizen“; Rückläufer (dauerhaft, 5.x.x) → Adresse sofort aus der
+  Google-Tabelle löschen (Dienstkonto braucht dafür **Bearbeiter** auf dem Listen-Ordner),
+  zusätzlich gesperrt in `data/unzustellbar.txt`, Mail in Ordner „Unzustellbar“,
+  Info-Mail an Marc mit den Adressen. Nach jedem Versand **Versand-Bericht** an Marc
+  („… verschickt – x von y Mails raus“) – Marc muss nicht ins Server-Log (journalctl).
   **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
   Teams-Entwurf). Deutsch: „Preise netto, innerhalb Deutschlands frei Haus“,
   Ausland/Englisch: „Prices net, ex works Germany“.
@@ -145,5 +151,6 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/mailer.py` – Angebots-Serienmail über IONOS (Vorschau, Test, Versand, Protokoll)
 - `agent/freigabe.py` – Freigabe per Antwort-Mail (Antrag an Marc, IMAP-Prüfung der Antwort)
 - `agent/sonder.py` – Sonderangebot aus `config/sonderangebot.json` (aus dem Chat)
+- `agent/postfach.py` – Abwesenheitsnotizen wegsortieren, Rückläufer aus den Listen löschen
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)
