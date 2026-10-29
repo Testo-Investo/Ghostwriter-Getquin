@@ -62,6 +62,17 @@ def _list_files(headers: dict) -> list[dict]:
     return resp.json().get("files", [])
 
 
+def _check(resp: requests.Response) -> None:
+    """Fehler mit Googles eigener Begründung (z. B. „Sheets API ist nicht aktiviert“)."""
+    if resp.ok:
+        return
+    try:
+        grund = resp.json()["error"]["message"]
+    except (ValueError, KeyError, TypeError):
+        grund = resp.text[:300]
+    raise RuntimeError(f"Google {resp.status_code}: {grund}")
+
+
 def remove_addresses(adressen: set[str]) -> dict[str, list[str]]:
     """Zeilen mit diesen E-Mail-Adressen aus allen Listen im Ordner löschen.
 
@@ -71,10 +82,10 @@ def remove_addresses(adressen: set[str]) -> dict[str, list[str]]:
     gefunden: dict[str, list[str]] = {}
     for f in _list_files(headers):
         meta = requests.get(f"{api}/{f['id']}", params={"fields": "sheets.properties"}, headers=headers, timeout=60)
-        meta.raise_for_status()
+        _check(meta)
         blatt = meta.json()["sheets"][0]["properties"]  # Empfänger stehen im ersten Blatt
         werte = requests.get(f"{api}/{f['id']}/values/{quote(chr(39) + blatt['title'] + chr(39))}", headers=headers, timeout=60)
-        werte.raise_for_status()
+        _check(werte)
         zeilen = []
         for i, zeile in enumerate(werte.json().get("values", [])):
             treffer = {str(c).strip().lower() for c in zeile} & adressen
@@ -88,9 +99,7 @@ def remove_addresses(adressen: set[str]) -> dict[str, list[str]]:
                                                     "startIndex": i, "endIndex": i + 1}}}
                     for i in sorted(zeilen, reverse=True)]  # von unten, damit die Nummern stimmen
         resp = requests.post(f"{api}/{f['id']}:batchUpdate", json={"requests": loeschen}, headers=headers, timeout=60)
-        if resp.status_code == 403:
-            raise RuntimeError("Keine Bearbeiten-Rechte auf den Listen – Ordner mit dem Dienstkonto als „Bearbeiter“ teilen.")
-        resp.raise_for_status()
+        _check(resp)
     return gefunden
 
 

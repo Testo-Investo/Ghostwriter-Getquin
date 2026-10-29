@@ -13,6 +13,7 @@
       Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
   postfach <liste.xlsx> [weitere Listen …]
       Abwesenheitsnotizen wegsortieren, Rückläufer-Adressen aus den Listen löschen
+  versand-status [JJJJ-MM-TT]   Protokoll eines Tages auswerten (Betreff × Status)
   whoami | catalog | export-chats
 """
 
@@ -46,7 +47,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "mail-sonder", "postfach", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "mail-sonder", "postfach", "versand-status", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "fetch-stock":
@@ -57,6 +58,23 @@ def main() -> None:
         from .gsheet import fetch_mailing_lists
         for path in fetch_mailing_lists():
             print(f"  {path}")
+        return
+    if cmd == "versand-status":
+        import csv
+        from collections import Counter
+        tag = sys.argv[2] if len(sys.argv) > 2 else date.today().isoformat()
+        log = mailer.OUTBOX / f"versand_{tag}.csv"
+        if not log.exists():
+            print(f"Kein Protokoll für {tag}.")
+            return
+        rows = list(csv.DictReader(log.open(newline="")))
+        zaehler = Counter((r["betreff"], r["status"].split(":")[0]) for r in rows)
+        print(f"{len(rows)} Einträge am {tag}, {len({r['email'] for r in rows})} verschiedene Adressen:")
+        for (betreff, status), n in sorted(zaehler.items()):
+            print(f"  {n:4}  {status:9} {betreff}")
+        for r in rows:
+            if r["status"].startswith("fehler"):
+                print(f"  Fehler {r['email']}: {r['status'][:150]}")
         return
     if cmd == "postfach":
         from . import postfach
