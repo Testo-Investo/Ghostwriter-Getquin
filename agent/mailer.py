@@ -20,7 +20,10 @@ import os
 import re
 import smtplib
 import ssl
+import json
+import math
 import time
+import urllib.request
 from dataclasses import dataclass
 from datetime import date
 from email.message import EmailMessage
@@ -35,7 +38,10 @@ from .watch import fresh_arrivals
 SMTP_HOST = "smtp.ionos.de"
 SMTP_PORT = 587
 PAUSE_SEKUNDEN = 4          # Abstand zwischen zwei Mails, schont Reputation und IONOS-Limits
-MAX_ARTIKEL = 15
+MIN_ARTIKEL = 5             # Marc: „immer so 5 bis 10 Artikel“
+MAX_ARTIKEL = 10
+EZB_KURSE = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
+STATE = Path("data/mail_state.json")  # welche EANs schon per Mail angekündigt wurden
 ABMELDUNGEN = Path("data/abmeldungen.txt")
 OUTBOX = Path("data/outbox")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
@@ -89,11 +95,13 @@ class Recipient:
     email: str
     marken: set[str]
     sprache: str = "de"
+    waehrung: str = "EUR"
 
 
 def load_recipients(path: str | Path, sprache: str | None = None) -> list[Recipient]:
     path = Path(path)
     sprache = sprache or ("en" if "engl" in path.name.lower() else "de")
+    waehrung = "USD" if "dubai" in path.name.lower() else "EUR"  # Dubai: Dollar zum Tageskurs
     if path.suffix.lower() in (".xlsx", ".xlsm"):
         ws = load_workbook(path, read_only=True, data_only=True).worksheets[0]
         rows = [[("" if c is None else str(c)).strip() for c in r] for r in ws.iter_rows(values_only=True)]
@@ -121,19 +129,46 @@ def load_recipients(path: str | Path, sprache: str | None = None) -> list[Recipi
         vorname = get(i_vor)
         if vorname.lower() in ("team", "sales", "info"):
             vorname = ""
-        out.append(Recipient(get(i_firma) or email.split("@")[1], vorname, email, marken, sprache))
+        out.append(Recipient(get(i_firma) or email.split("@")[1], vorname, email, marken, sprache, waehrung))
     return out
 
 
-def pick_items(recipient: Recipient, items: list[StockItem]) -> list[StockItem]:
-    """Neue Wareneingänge seiner Marken, dann übrige seiner Marken, dann übrige neue Ware."""
-    fresh = {i.ean for i in fresh_arrivals(items)}
+def pick_items(recipient: Recipient, items: list[StockItem], neu_eans: set[str] | None = None) -> list[StockItem]:
+    """5–10 Artikel: zuerst Neues (seine Marken vor anderen), aufgefüllt mit übrigen
+    frischen Wareneingängen (seine Marken zuerst).
+
+    neu_eans: nur diese gelten als „neu“ (Versand bei neuem Wareneingang);
+    ohne Angabe gelten alle Wareneingänge der letzten 7 Tage als neu."""
     pool = sorted(offerable(items), key=lambda i: i.position)
-    mine = [i for i in pool if i.hersteller.lower() in recipient.marken
-            or i.hersteller.lower().replace("!", "") in recipient.marken]
-    ordered = [i for i in mine if i.ean in fresh] + [i for i in mine if i.ean not in fresh]
-    ordered += [i for i in pool if i.ean in fresh and i not in ordered]
+    fresh = [i for i in pool if i.ean in {f.ean for f in fresh_arrivals(items)}]
+    neu = [i for i in fresh if neu_eans is None or i.ean in neu_eans]
+    mine = lambda i: i.hersteller.lower() in recipient.marken or i.hersteller.lower().replace("!", "") in recipient.marken
+    ordered = [i for i in neu if mine(i)] + [i for i in neu if not mine(i)]
+    if len(ordered) < MIN_ARTIKEL:
+        rest = [i for i in fresh if i not in ordered]
+        ordered += [i for i in rest if mine(i)] + [i for i in rest if not mine(i)]
     return ordered[:MAX_ARTIKEL]
+
+
+def usd_rate() -> float:
+    """EUR→USD-Referenzkurs der EZB vom Tag (gecacht); USD_KURS in .env überschreibt."""
+    if os.getenv("USD_KURS"):
+        return float(os.environ["USD_KURS"])
+    cache = Path(f"data/kurs_usd_{date.today().isoformat()}.txt")
+    if cache.exists():
+        return float(cache.read_text())
+    with urllib.request.urlopen(EZB_KURSE, timeout=20) as resp:
+        xml = resp.read().decode()
+    rate = float(re.search(r"currency='USD' rate='([\d.]+)'", xml).group(1))
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(str(rate))
+    return rate
+
+
+def _price(r: "Recipient", eur: float, rate: float | None) -> str:
+    if r.waehrung == "USD":
+        return f"${math.ceil(eur * rate * 100) / 100:,.2f}"  # aufrunden, Marge nicht verschenken
+    return _euro(eur, r.sprache)
 
 
 def _euro(v: float, sprache: str = "de") -> str:
@@ -142,13 +177,15 @@ def _euro(v: float, sprache: str = "de") -> str:
     return f"{v:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def build_message(r: Recipient, items: list[StockItem], absender: str, absender_name: str) -> EmailMessage:
+def build_message(r: Recipient, items: list[StockItem], absender: str, absender_name: str,
+                  signatur: str = "", rate: float | None = None) -> EmailMessage:
     t = TEXTE[r.sprache]
     gruss = t["gruss"].format(vorname=r.vorname) if r.vorname else t["gruss_ohne"]
     heute = date.today().strftime("%d.%m.%Y")
-    eur = lambda v: _euro(v, r.sprache)
+    eur = lambda v: _price(r, v, rate)
     lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{eur(i.angebotspreis)}" for i in items)
-    text = f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n{t['outro']}\n\n{absender_name}\n\n{t['abmelden']}\n"
+    sig = signatur.strip() or absender_name
+    text = f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n{t['outro']}\n\n{sig}\n\n{t['abmelden']}\n"
     rows = "".join(
         f"<tr><td>{html.escape(i.artikel)}</td><td>{i.ean}</td><td style='text-align:right'>{i.verfuegbar}x</td>"
         f"<td style='text-align:right;white-space:nowrap'>{eur(i.angebotspreis)}</td></tr>" for i in items
@@ -159,7 +196,7 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
         "<table cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px'>"
         f"<tr style='background:#eee'>{kopf}</tr>{rows}</table>"
         f"<p>{html.escape(t['outro']).replace(chr(10), '<br>')}</p>"
-        f"<p>{html.escape(absender_name)}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
+        f"<p>{html.escape(sig).replace(chr(10), '<br>')}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
     )
     msg = EmailMessage()
     msg["Subject"] = t["betreff"].format(datum=heute, marke=items[0].hersteller)
@@ -175,13 +212,31 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
 Mail = tuple[Recipient, EmailMessage, int]  # Empfänger, Mail, Anzahl Artikel
 
 
-def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str) -> list[Mail]:
+def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str,
+              neu_eans: set[str] | None = None, signatur: str = "") -> list[Mail]:
+    rate = usd_rate() if any(r.waehrung == "USD" for r in recipients) else None
     out = []
     for r in recipients:
-        chosen = pick_items(r, items)
+        chosen = pick_items(r, items, neu_eans)
         if chosen:
-            out.append((r, build_message(r, chosen, absender, absender_name), len(chosen)))
+            out.append((r, build_message(r, chosen, absender, absender_name, signatur, rate), len(chosen)))
     return out
+
+
+def load_state() -> dict:
+    return json.loads(STATE.read_text()) if STATE.exists() else {"angekuendigt": [], "zuletzt": ""}
+
+
+def new_arrivals_to_announce(items: list[StockItem], state: dict) -> set[str]:
+    """Frische, anbietbare Wareneingänge, die noch in keiner Mail standen."""
+    return {i.ean for i in fresh_arrivals(items)} - set(state["angekuendigt"])
+
+
+def mark_announced(state: dict, eans: set[str]) -> None:
+    state["angekuendigt"] = sorted(set(state["angekuendigt"]) | eans)
+    state["zuletzt"] = date.today().isoformat()
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(state, indent=1))
 
 
 def write_preview(mails: list[Mail], name: str = "") -> Path:

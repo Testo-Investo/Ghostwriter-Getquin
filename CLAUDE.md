@@ -63,6 +63,12 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Marcs vier Serienbrief-Listen (deutsch, englisch, englisch Messe, Dubai; 182
   Adressen) liegen lokal unter `data/mailinglisten/` – nie committen. Englisch,
   wenn der Dateiname „engl“ enthält; Spalte „Produkt(e)“ = Marken/Kategorien.
+  **Marcs Vorgaben:** Absender **marc@neobution.com**, Signatur folgt (→
+  `data/signatur.txt`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
+  zum EZB-Tageskurs (aufgerundet), Lieferbedingung „ex works Germany“ für alle
+  englischen Listen. **Versand immer dann, wenn neue Ware reinkommt** →
+  `mail-neu`: stündlich prüfen, verschickt nur Artikel, die noch in keiner Mail
+  standen (Merkliste `data/mail_state.json`), höchstens eine Mail pro Tag.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
   (EU-Region) und spricht ausschließlich über APIs mit den Systemen.

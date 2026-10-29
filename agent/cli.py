@@ -3,11 +3,15 @@
   stock | watch | offer | profiles
   mail-preview <liste.xlsx> [weitere Listen …]
   mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
+  mail-neu <liste.xlsx> [weitere Listen …] [--test adresse] [--vorschau] [--force]
+      verschickt nur, wenn neue Ware da ist, die noch in keiner Mail stand
+      (höchstens einmal pro Tag; für den stündlichen Lauf auf dem Server)
   whoami | catalog | export-chats
 """
 
 import json
 import os
+from datetime import date
 import sys
 from pathlib import Path
 
@@ -35,7 +39,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "stock":
@@ -83,23 +87,40 @@ def main() -> None:
         Path("data/kunden.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1))
         print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
         return
-    if cmd in ("mail-preview", "mail-send"):
+    if cmd in ("mail-preview", "mail-send", "mail-neu"):
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
+        flags = {a for a in args if a in ("--vorschau", "--force")}
         test_to = None
         if "--test" in args:
             test_to = args[args.index("--test") + 1]
             args = args[:args.index("--test")] + args[args.index("--test") + 2:]
+        args = [a for a in args if a not in flags]
+        neu_eans, state = None, None
+        if cmd == "mail-neu":
+            state = mailer.load_state()
+            neu_eans = mailer.new_arrivals_to_announce(current, state)
+            if not neu_eans:
+                print("Keine neue Ware seit der letzten Mail – nichts zu verschicken.")
+                return
+            if state["zuletzt"] == date.today().isoformat() and "--force" not in flags:
+                print(f"{len(neu_eans)} neue Artikel warten, heute wurde aber schon verschickt – morgen geht's raus.")
+                return
+        sende = cmd == "mail-send" or (cmd == "mail-neu" and "--vorschau" not in flags)
+        signatur = Path("data/signatur.txt").read_text() if Path("data/signatur.txt").exists() else ""
         seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
         for liste in args:
             recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
             seen |= {r.email for r in recipients}
-            mails = mailer.build_all(recipients, current, os.getenv("MAIL_FROM", "marc@example.de"), os.getenv("MAIL_NAME", "Marc Knieb"))
+            mails = mailer.build_all(recipients, current, os.getenv("MAIL_FROM", "marc@neobution.com"),
+                                     os.getenv("MAIL_NAME", "Marc Knieb"), neu_eans, signatur)
             folder = mailer.write_preview(mails, Path(liste).stem)
             print(f"{Path(liste).name}: {len(mails)} Mails → {folder}/vorschau.html")
-            if cmd == "mail-send":
+            if sende:
                 log = mailer.send_all(mails, test_to)
                 print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
+        if cmd == "mail-neu" and sende and not test_to:
+            mailer.mark_announced(state, neu_eans)
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
