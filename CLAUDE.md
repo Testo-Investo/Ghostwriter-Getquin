@@ -64,14 +64,20 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Adressen) liegen lokal unter `data/mailinglisten/` – nie committen. Englisch,
   wenn der Dateiname „engl“ enthält; Spalte „Produkt(e)“ = Marken/Kategorien.
   **Marcs Vorgaben:** Absender **marc@neobution.com**, Signatur folgt (→
-  `data/signatur.txt`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
+  `config/signatur.txt` + `config/signatur_logo.png`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
   zum EZB-Tageskurs (aufgerundet), Lieferbedingung „ex works Germany“ für alle
   englischen Listen. **Versand immer dann, wenn neue Ware reinkommt** →
   `mail-neu`: stündlich prüfen, verschickt nur Artikel, die noch in keiner Mail
   standen (Merkliste `data/mail_state.json`), höchstens eine Mail pro Tag.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
-- **Betrieb:** Keine VM auf Marcs PC. Agent läuft später auf einem Cloud-Server
-  (EU-Region) und spricht ausschließlich über APIs mit den Systemen.
+- **Betrieb:** Keine VM auf Marcs PC. **Server: Hetzner Cloud CPX02, Nürnberg,
+  Ubuntu 26.04, IPv4 2.31.88.120, Name „ghostwriter“** (Marc loggt sich per
+  PowerShell `ssh root@2.31.88.120` ein; die Browser-Konsole kann nicht einfügen).
+  Code unter `/opt/ghostwriter` (Clone dieses Repos), Einrichtung mit
+  `deploy/install.sh` (fragt IONOS-Passwort unsichtbar ab → `.env`, chmod 600),
+  stündlicher Lauf per systemd-Timer `ghostwriter.timer` (Mo–Fr 7–18 Uhr,
+  `deploy/run_hourly.sh`: `fetch-stock` + `mail-neu`). Google-Zugang auf dem
+  Server über Dienstkonto, Schlüssel in `config/secrets/google.json` (nie committen).
 - **Zugangsdaten:** Niemals Passwörter im Chat oder im Repo. Azure-App +
   OAuth (Device-Code-Login) für Graph, API-Token für weclapp, alles in `.env`.
 

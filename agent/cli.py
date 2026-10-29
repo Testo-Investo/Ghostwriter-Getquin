@@ -1,6 +1,7 @@
 """Einstieg: python -m agent.cli <befehl>
 
   stock | watch | offer | profiles
+  fetch-stock   Warenbestand aus Google Sheets laden (Server, Dienstkonto)
   mail-preview <liste.xlsx> [weitere Listen …]
   mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
   mail-neu <liste.xlsx> [weitere Listen …] [--test adresse] [--vorschau] [--force]
@@ -39,8 +40,12 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"fetch-stock", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "whoami", "catalog", "export-chats"}:
         print(__doc__)
+        return
+    if cmd == "fetch-stock":
+        from .gsheet import fetch_stock_csv
+        print(f"Warenbestand geladen → {fetch_stock_csv()}")
         return
     if cmd == "stock":
         items = offerable(parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text()))
@@ -107,7 +112,7 @@ def main() -> None:
                 print(f"{len(neu_eans)} neue Artikel warten, heute wurde aber schon verschickt – morgen geht's raus.")
                 return
         sende = cmd == "mail-send" or (cmd == "mail-neu" and "--vorschau" not in flags)
-        signatur = Path("data/signatur.txt").read_text() if Path("data/signatur.txt").exists() else ""
+        signatur = mailer.SIGNATUR.read_text() if mailer.SIGNATUR.exists() else ""
         seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
         for liste in args:
             recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
