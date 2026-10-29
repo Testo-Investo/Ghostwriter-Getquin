@@ -65,8 +65,11 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Mailinglisten“** (ID `1Wb8dHpE8gImBG9gGiCrhrp5EoQKkJ3Vq`, mit dem Dienstkonto
   `ghostwriter-leser@psyched-ray-513112-i7.iam.gserviceaccount.com` geteilt).
   Marc pflegt sie nur noch dort; `fetch-lists` holt sie vor jedem Versand nach
-  `data/mailinglisten/` (nie committen). Dubai-Liste: Namen/Adressen teils
-  verrutscht → Anrede ohne Namen, bis Marc sie korrigiert. Englisch,
+  `data/mailinglisten/` (nie committen). Dubai-Liste am 29.10. bereinigt:
+  Namen waren gegenüber den Adressen verrutscht → nur eindeutig zuordenbare Namen
+  behalten (Rest „Hi,“), hotmail.conn/gmait.com korrigiert, 4 unlesbare Adressen
+  entfernt (pradotechnotogv, cfelativity, iackys, amtaroupinc); alte Fassung liegt
+  als „… (ALT, fehlerhaft)“ außerhalb des Ordners. Englisch,
   wenn der Dateiname „engl“ enthält; Spalte „Produkt(e)“ = Marken/Kategorien.
   **Marcs Vorgaben:** Absender **marc@neobution.com**, Signatur folgt (→
   `config/signatur.txt` + `config/signatur_logo.png`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
