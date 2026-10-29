@@ -1,13 +1,16 @@
 {
-  "id": "2026-10-29-s26-hp-jbl",
-  "anlass": "Sonderangebot: Samsung S26, HP Dock G6 und JBL Flip 7",
+  "id": "2026-10-29-dell-monitore",
+  "anlass": "Sonderangebot: Dell Monitore und Docks",
   "artikel": [
-    {"artikel": "Samsung Galaxy S26 256 GB White", "ean": "8806097827801", "menge": 98, "preis": 585.00, "hersteller": "Samsung"},
-    {"artikel": "Samsung Galaxy S26 256 GB Cobalt Violet", "ean": "8806097827337", "menge": 57, "preis": 585.00, "hersteller": "Samsung"},
-    {"artikel": "Samsung Galaxy S26 256 GB Black", "ean": "8806097827481", "menge": 7, "preis": 585.00, "hersteller": "Samsung"},
-    {"artikel": "Samsung Galaxy S26 256 GB Sky Blue", "ean": "8806097827634", "menge": 3, "preis": 585.00, "hersteller": "Samsung"},
-    {"artikel": "Samsung Galaxy S26 Ultra 256 GB Sky Blue", "ean": "8806097826798", "menge": 18, "preis": 810.00, "hersteller": "Samsung"},
-    {"artikel": "HP USB-C Dock G6 9X3V1UT", "ean": "0198415314048", "menge": 600, "preis": 88.00, "hersteller": "HP"},
-    {"artikel": "JBL Flip 7 schwarz", "ean": "1200130019272", "menge": 1000, "preis": 65.00, "hersteller": "JBL"}
+    {"artikel": "Dell U4924DW", "ean": "5397184657133", "menge": 45, "preis": 889.00, "hersteller": "Dell"},
+    {"artikel": "Dell U2724DE", "ean": "5397184821480", "menge": 100, "preis": 340.00, "hersteller": "Dell"},
+    {"artikel": "Dell U3425WE", "ean": "5397184821503", "menge": 160, "preis": 565.00, "hersteller": "Dell"},
+    {"artikel": "Dell SD25TB5", "ean": "5397184961827", "menge": 200, "preis": 285.00, "hersteller": "Dell"},
+    {"artikel": "Dell P2725QE", "ean": "5397184962497", "menge": 159, "preis": 305.00, "hersteller": "Dell"},
+    {"artikel": "Dell Pro 34 Plus-USB-C-Hub-Monitor – P3425WE", "ean": "5397184962510", "menge": 215, "preis": 329.00, "hersteller": "Dell"},
+    {"artikel": "Dell WD25TB5", "ean": "5397321029076", "menge": 413, "preis": 270.00, "hersteller": "Dell"},
+    {"artikel": "Dell P2426H", "ean": "5397321029403", "menge": 206, "preis": 120.00, "hersteller": "Dell"},
+    {"artikel": "Dell P2726H", "ean": "5397321029489", "menge": 396, "preis": 132.00, "hersteller": "Dell"},
+    {"artikel": "Dell P2726HE", "ean": "5397321029519", "menge": 200, "preis": 170.00, "hersteller": "Dell"}
   ]
 }
