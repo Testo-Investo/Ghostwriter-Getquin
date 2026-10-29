@@ -93,7 +93,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   beim nächsten Lauf (Mo–Fr 7–18 Uhr) eine Freigabe-Mail [SO-…]; nach FREIGABE geht
   es an alle Listen (alle bekommen dieselben Artikel, Dubai in $). Jede `id` nur
   einmal; zählt nicht gegen „eine Mail pro Tag“ (`agent/sonder.py`, `mail-sonder`).
-  **Postfach (stündlich, `postfach`):** Abwesenheitsnotizen → IMAP-Ordner
+  **Postfach (stündlich, `postfach`, Posteingang + Spam-Ordner – Rückläufer landen oft im Spam):** Abwesenheitsnotizen → IMAP-Ordner
   „Abwesenheitsnotizen“; Rückläufer (dauerhaft, 5.x.x) → Adresse sofort aus der
   Google-Tabelle löschen (Dienstkonto braucht dafür **Bearbeiter** auf dem Listen-Ordner),
   zusätzlich gesperrt in `data/unzustellbar.txt`, Mail in Ordner „Unzustellbar“,

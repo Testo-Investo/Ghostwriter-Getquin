@@ -134,43 +134,73 @@ def _verschieben(imap: imaplib.IMAP4, uids: list[bytes], ordner: str) -> None:
     imap.expunge()
 
 
+def _spam_ordner(imap: imaplib.IMAP4) -> list[str]:
+    """Spam-Ordner des Postfachs (IONOS: „Spam“; erkannt am Kennzeichen \\Junk oder am Namen)."""
+    out = []
+    for zeile in imap.list()[1] or []:
+        z = zeile.decode(errors="replace")
+        m = re.search(r'"([^"]*)"\s*$|(\S+)\s*$', z)
+        name = (m.group(1) or m.group(2)) if m else ""
+        if name and ("\\Junk" in z or re.search(r"(^|[./])(spam|junk|spamverdacht|junk-e-mail)$", name, re.I)):
+            out.append(name)
+    return out
+
+
 def aufraeumen(listen: list[Path]) -> dict:
-    """Posteingang prüfen. Gibt {'abwesend': n, 'geloescht': [(adresse, liste, grund)], 'fehler', 'gesperrt'} zurück."""
+    """Posteingang und Spam-Ordner prüfen (Rückläufer landen oft im Spam).
+
+    Gibt {'geprueft', 'abwesend', 'rueck', 'geloescht': [(adresse, liste, grund)], 'fehler', 'gesperrt'} zurück."""
     eigene = {os.environ["MAIL_FROM"].lower(), os.environ["IONOS_SMTP_USER"].lower()}
     in_listen = listen_adressen(listen)
-    abwesend, rueck, kaputt = [], [], {}
+    kaputt: dict[str, str] = {}
+    funde: dict[str, tuple[list, list]] = {}  # Ordner → (Abwesenheitsnotizen, Rückläufer)
+    geprueft = 0
+    seit = (date.today() - timedelta(days=TAGE)).strftime("%d-%b-%Y")
     with imaplib.IMAP4_SSL("imap.ionos.de") as imap:
         imap.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
-        imap.select("INBOX")
-        seit = (date.today() - timedelta(days=TAGE)).strftime("%d-%b-%Y")
-        _, data = imap.uid("SEARCH", None, "SINCE", seit)
-        for uid in data[0].split():
-            _, raw = imap.uid("FETCH", uid, "(BODY.PEEK[])")  # PEEK: bleibt ungelesen
-            if not raw or not isinstance(raw[0], tuple):
+        for ordner in ["INBOX", *_spam_ordner(imap)]:
+            if imap.select(f'"{ordner}"')[0] != "OK":
                 continue
-            msg = email.message_from_bytes(raw[0][1])
-            if parseaddr(str(msg.get("From", "")))[1].lower() in eigene:
-                continue  # Freigabe-Mails, Berichte usw.
-            ist_rueck, ziele = unzustellbar(msg)
-            if ist_rueck:
-                treffer = [(a, g) for a, g in ziele if a in in_listen and a not in eigene]
-                if treffer:
-                    rueck.append(uid)
-                    for a, g in treffer:
-                        kaputt.setdefault(a, g)
-                elif ziele or msg.get_content_type() == "multipart/report":
-                    if not _VERZOEGERT.search(_betreff(msg)):
-                        rueck.append(uid)  # Rückläufer zu Adressen außerhalb der Listen: nur wegräumen
-                continue
-            if ist_abwesend(msg):
-                abwesend.append(uid)
+            abwesend, rueck = funde.setdefault(ordner, ([], []))
+            _, data = imap.uid("SEARCH", None, "SINCE", seit)
+            for uid in data[0].split():
+                geprueft += 1
+                _, raw = imap.uid("FETCH", uid, "(BODY.PEEK[])")  # PEEK: bleibt ungelesen
+                if not raw or not isinstance(raw[0], tuple):
+                    continue
+                msg = email.message_from_bytes(raw[0][1])
+                if parseaddr(str(msg.get("From", "")))[1].lower() in eigene:
+                    continue  # Freigabe-Mails, Berichte usw.
+                ist_rueck, ziele = unzustellbar(msg)
+                if ist_rueck:
+                    treffer = [(a, g) for a, g in ziele if a in in_listen and a not in eigene]
+                    if treffer:
+                        rueck.append(uid)
+                        for a, g in treffer:
+                            kaputt.setdefault(a, g)
+                    elif ziele or msg.get_content_type() == "multipart/report":
+                        if not _VERZOEGERT.search(_betreff(msg)):
+                            rueck.append(uid)  # Rückläufer zu Adressen außerhalb der Listen: nur wegräumen
+                    continue
+                if ist_abwesend(msg):
+                    abwesend.append(uid)
         kaputt |= {a: g for a, g in mailer.permanent_failures().items() if a in in_listen}  # beim Versand abgelehnt (550)
         geloescht, fehler = entfernen(kaputt, in_listen)
-        if fehler:
-            rueck = []  # Rückläufer bleiben liegen, nächster Lauf versucht es erneut
-        _verschieben(imap, abwesend, _ordner(imap, ORDNER_ABWESEND) if abwesend else "")
-        _verschieben(imap, rueck, _ordner(imap, ORDNER_RUECKLAEUFER) if rueck else "")
-    return {"geprueft": len(data[0].split()), "abwesend": len(abwesend), "rueck": len(rueck),
+        ziel_abw = ziel_rueck = None
+        for ordner, (abwesend, rueck) in funde.items():
+            if fehler:
+                rueck = []  # Rückläufer bleiben liegen, nächster Lauf versucht es erneut
+            if not (abwesend or rueck):
+                continue
+            if abwesend and ziel_abw is None:
+                ziel_abw = _ordner(imap, ORDNER_ABWESEND)
+            if rueck and ziel_rueck is None:
+                ziel_rueck = _ordner(imap, ORDNER_RUECKLAEUFER)
+            imap.select(f'"{ordner}"')
+            _verschieben(imap, abwesend, ziel_abw or "")
+            _verschieben(imap, rueck, ziel_rueck or "")
+    return {"geprueft": geprueft, "abwesend": sum(len(a) for a, _ in funde.values()),
+            "rueck": 0 if fehler else sum(len(r) for _, r in funde.values()),
             "geloescht": geloescht, "fehler": fehler, "gesperrt": sorted(kaputt) if fehler else []}
 
 
