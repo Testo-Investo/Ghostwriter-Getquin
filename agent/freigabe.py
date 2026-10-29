@@ -11,6 +11,7 @@ Die Antwort wird per IMAP aus Marcs IONOS-Postfach gelesen (gleiche Zugangsdaten
 """
 
 import email
+import html
 import imaplib
 import os
 import secrets
@@ -36,15 +37,25 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list]) -> 
     msg["Subject"] = f"Freigabe nötig: Angebot mit {len(eans)} neuen Artikeln an {gesamt} Kontakte [{kennung}]"
     msg["From"] = formataddr(("Ghostwriter", os.environ["MAIL_FROM"]))
     msg["To"] = os.getenv("FREIGABE_AN", os.environ["MAIL_FROM"])
-    msg.set_content(
+    kopf = (
         f"Moin Marc,\n\nneue Ware ist da. Bereit zum Versand:\n\n{zeilen}\n  Gesamt: {gesamt} Mails\n\n"
         "Antworte einfach auf diese Mail:\n"
         "  FREIGABE  → wird spätestens in einer Stunde verschickt\n"
         "  STOPP     → wird verworfen\n\n"
         f"Ohne Antwort verfällt der Antrag nach {GUELTIG_TAGE} Tagen.\n"
-        "Im Anhang je Liste eine Beispiel-Mail, genau so wie der Kunde sie sieht.\n\n"
-        "--- Beispiel (Text) ---\n\n" + beispiel.get_body(("plain",)).get_content()
+        "Im Anhang je Liste eine Beispiel-Mail. Darunter das erste Beispiel so, wie der Kunde es sieht.\n"
     )
+    msg.set_content(kopf + "\n--- Beispiel ---\n\n" + beispiel.get_body(("plain",)).get_content())
+    # Beispiel im Original-Aussehen (Tabelle, Banner, Signatur) unter die Zusammenfassung setzen
+    html_teil = beispiel.get_body(("html",))
+    kopf_html = "<div style='font-family:Arial,sans-serif;font-size:14px'>" + html.escape(kopf).replace("\n", "<br>") + "</div>"
+    trenner = (f"<hr><p style='font-family:Arial,sans-serif;color:#888;font-size:12px'>"
+               f"Beispiel an {html.escape(beispiel['To'])} – Betreff: {html.escape(beispiel['Subject'])}</p>")
+    msg.add_alternative(kopf_html + trenner + html_teil.get_content(), subtype="html")
+    for bild in beispiel.walk():
+        if bild.get_content_maintype() == "image":
+            msg.get_payload()[1].add_related(bild.get_payload(decode=True), "image", bild.get_content_subtype(),
+                                             cid=bild["Content-ID"])
     for name, mails in mails_by_list.items():
         # als Datei (base64) anhängen – eingebettet als message/rfc822 hätte sie Zeilen
         # über 998 Zeichen, die IONOS mit „501 line too long“ ablehnt
