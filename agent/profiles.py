@@ -88,7 +88,8 @@ def _euro(value: float) -> str:
 
 def draft_offer(items: list[StockItem]) -> str:
     """Angebot in Marcs Format: Artikel / EAN / Menge x / Preis – Blöcke mit Leerzeile."""
-    blocks = [f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{_euro(i.angebotspreis)}" for i in items]
+    menge = lambda n: "1.000+" if n >= 1000 else f"{n}x"  # Marc: ab 1.000 Stück „1.000+“
+    blocks = [f"{i.artikel}\n{i.ean}\n{menge(i.verfuegbar)}\n{_euro(i.angebotspreis)}" for i in items]
     return "moin\n\n" + "\n\n".join(blocks)
 
 

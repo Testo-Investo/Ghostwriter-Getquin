@@ -74,7 +74,7 @@ TEXTE = {
     "de": {
         "gruss": "Moin {vorname},", "gruss_ohne": "Moin,",
         "intro": "hier die aktuelle Ware, sofort verfügbar:",
-        "outro": "Preise netto, solange Vorrat reicht.\nMeld dich einfach.",
+        "outro": "Preise netto, innerhalb Deutschlands frei Haus, solange Vorrat reicht.\nMeld dich einfach.",
         "abmelden": "Keine Angebote mehr? Kurz mit „Abmelden“ antworten.",
         "betreff": "Angebot {datum} – {marke} & mehr",
         "kopf": ("Artikel", "EAN", "Menge", "Preis"),
@@ -142,7 +142,8 @@ def pick_items(recipient: Recipient, items: list[StockItem], neu_eans: set[str] 
     neu_eans: nur diese gelten als „neu“ (Versand bei neuem Wareneingang);
     ohne Angabe gelten alle Wareneingänge der letzten 7 Tage als neu."""
     pool = sorted(offerable(items), key=lambda i: i.position)
-    fresh = [i for i in pool if i.ean in {f.ean for f in fresh_arrivals(items)}]
+    fresh_eans = {f.ean for f in fresh_arrivals(items)}
+    fresh = [i for i in pool if i.ean in fresh_eans]
     neu = [i for i in fresh if neu_eans is None or i.ean in neu_eans]
     mine = lambda i: i.hersteller.lower() in recipient.marken or i.hersteller.lower().replace("!", "") in recipient.marken
     ordered = [i for i in neu if mine(i)] + [i for i in neu if not mine(i)]
@@ -179,18 +180,26 @@ def _euro(v: float, sprache: str = "de") -> str:
     return f"{v:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _menge(n: int, sprache: str) -> str:
+    """Marc: ab 1.000 Stück nur „1.000+“ statt der genauen Menge."""
+    if n >= 1000:
+        return "1,000+" if sprache == "en" else "1.000+"
+    return f"{n}x"
+
+
 def build_message(r: Recipient, items: list[StockItem], absender: str, absender_name: str,
                   signatur: str = "", rate: float | None = None) -> EmailMessage:
     t = TEXTE[r.sprache]
     gruss = t["gruss"].format(vorname=r.vorname) if r.vorname else t["gruss_ohne"]
     heute = date.today().strftime("%d.%m.%Y")
     eur = lambda v: _price(r, v, rate)
-    lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{eur(i.angebotspreis)}" for i in items)
+    menge = lambda n: _menge(n, r.sprache)
+    lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{menge(i.verfuegbar)}\n{eur(i.angebotspreis)}" for i in items)
     sig = signatur.strip() or absender_name
     logo_cid = make_msgid(domain="neobution.com")
     text = f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n{t['outro']}\n\n{sig}\n\n{t['abmelden']}\n"
     rows = "".join(
-        f"<tr><td>{html.escape(i.artikel)}</td><td>{i.ean}</td><td style='text-align:right'>{i.verfuegbar}x</td>"
+        f"<tr><td>{html.escape(i.artikel)}</td><td>{i.ean}</td><td style='text-align:right'>{menge(i.verfuegbar)}</td>"
         f"<td style='text-align:right;white-space:nowrap'>{eur(i.angebotspreis)}</td></tr>" for i in items
     )
     kopf = "".join(f"<th align='left'>{h}</th>" for h in t["kopf"])
@@ -199,7 +208,7 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
         "<table cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px'>"
         f"<tr style='background:#eee'>{kopf}</tr>{rows}</table>"
         f"<p>{html.escape(t['outro']).replace(chr(10), '<br>')}</p>"
-        + (f"<p><img src='cid:{logo_cid[1:-1]}' alt='Neobution' width='420' style='max-width:100%'></p>" if LOGO.exists() else "")
+        + (f"<p><img src='cid:{logo_cid[1:-1]}' alt='Neobution' width='583' style='max-width:100%'></p>" if LOGO.exists() else "")
         + f"<p style='font-size:13px'>{_signature_html(sig)}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
     )
     msg = EmailMessage()
@@ -253,11 +262,16 @@ def new_arrivals_to_announce(items: list[StockItem], state: dict) -> set[str]:
     return {i.ean for i in fresh_arrivals(items)} - set(state["angekuendigt"])
 
 
+def save_state(state: dict) -> None:
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(state, indent=1))
+
+
 def mark_announced(state: dict, eans: set[str]) -> None:
     state["angekuendigt"] = sorted(set(state["angekuendigt"]) | eans)
     state["zuletzt"] = date.today().isoformat()
-    STATE.parent.mkdir(parents=True, exist_ok=True)
-    STATE.write_text(json.dumps(state, indent=1))
+    state.pop("antrag", None)
+    save_state(state)
 
 
 def write_preview(mails: list[Mail], name: str = "") -> Path:
@@ -275,6 +289,13 @@ def write_preview(mails: list[Mail], name: str = "") -> Path:
                      f"<b>Betreff:</b> {html.escape(msg['Subject'])}<hr>{html_part}</section>")
     (folder / "vorschau.html").write_text(f"<meta charset='utf-8'><h1>{len(mails)} Angebots-Mails</h1>{''.join(cards)}")
     return folder
+
+
+def send_raw(msg: EmailMessage) -> None:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
+        smtp.starttls(context=ssl.create_default_context())
+        smtp.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
+        smtp.send_message(msg)
 
 
 def smtp_test(to: str) -> None:

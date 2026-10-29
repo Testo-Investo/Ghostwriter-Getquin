@@ -257,7 +257,7 @@
         const liste = passend.slice(0, MAX_PASSEND).map((p) => p.a);
         const drin = new Set(liste.map((a) => a.ean));
         angebot.filter((a) => a.neu && !drin.has(a.ean)).forEach((a) => { if (liste.length < MAX_GESAMT) liste.push(a); });
-        const text = 'moin\n\n' + liste.map((a) => `${a.artikel}\n${a.ean}\n${a.verfuegbar}x\n${euro(a.preis)}`).join('\n\n');
+        const text = 'moin\n\n' + liste.map((a) => `${a.artikel}\n${a.ean}\n${a.verfuegbar >= 1000 ? '1.000+' : a.verfuegbar + 'x'}\n${euro(a.preis)}`).join('\n\n');
         return { kunde: k.kunde, letzte: k.letzte, passend: Math.min(passend.length, MAX_PASSEND), artikel: liste.length, marken: [...marken].slice(0, 3).join(', '), text };
       });
     },

@@ -77,6 +77,13 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   englischen Listen. **Versand immer dann, wenn neue Ware reinkommt** →
   `mail-neu`: stündlich prüfen, verschickt nur Artikel, die noch in keiner Mail
   standen (Merkliste `data/mail_state.json`), höchstens eine Mail pro Tag.
+  **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
+  Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
+  erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht
+  der Versand raus; „STOPP“ verwirft, ohne Antwort verfällt der Antrag nach 3 Tagen
+  (`agent/freigabe.py`). **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
+  Teams-Entwurf). Deutsch: „Preise netto, innerhalb Deutschlands frei Haus“,
+  Ausland/Englisch: „Prices net, ex works Germany“.
 - **Auftragssoftware:** weclapp (REST-API mit API-Token).
 - **Betrieb:** Keine VM auf Marcs PC. **Server: Hetzner Cloud CPX02, Nürnberg,
   Ubuntu 26.04, IPv4 2.31.88.120, Name „ghostwriter“** (Marc loggt sich per
@@ -124,5 +131,6 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/teams_file.py` – Teams-Datenexport (privates Teams) einlesen, Namen auflösen
 - `agent/profiles.py` – Kundenprofile (Marken, EANs) und passende Artikel, Angebotsentwurf in Marcs Format
 - `agent/mailer.py` – Angebots-Serienmail über IONOS (Vorschau, Test, Versand, Protokoll)
+- `agent/freigabe.py` – Freigabe per Antwort-Mail (Antrag an Marc, IMAP-Prüfung der Antwort)
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)

@@ -6,9 +6,9 @@
   smtp-test     eine Testmail an MAIL_FROM schicken (prüft IONOS-Zugang)
   mail-preview <liste.xlsx> [weitere Listen …]
   mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
-  mail-neu <liste.xlsx> [weitere Listen …] [--test adresse] [--vorschau] [--force]
-      verschickt nur, wenn neue Ware da ist, die noch in keiner Mail stand
-      (höchstens einmal pro Tag; für den stündlichen Lauf auf dem Server)
+  mail-neu <liste.xlsx> [weitere Listen …] [--vorschau] [--force] [--ohne-freigabe]
+      stündlicher Lauf: bei neuer Ware (noch in keiner Mail) Freigabe-Mail an Marc;
+      nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
   whoami | catalog | export-chats
 """
 
@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 
 from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
-from . import mailer
+from . import freigabe, mailer
 from .profiles import brands_from_stock, build_profile, export_rows
 from .teams_file import load_chats
 from .offer import build_offer, instant_offer, render_text
@@ -106,37 +106,74 @@ def main() -> None:
     if cmd in ("mail-preview", "mail-send", "mail-neu"):
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
-        flags = {a for a in args if a in ("--vorschau", "--force")}
+        flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe")}
         test_to = None
         if "--test" in args:
             test_to = args[args.index("--test") + 1]
             args = args[:args.index("--test")] + args[args.index("--test") + 2:]
         args = [a for a in args if a not in flags]
-        neu_eans, state = None, None
-        if cmd == "mail-neu":
-            state = mailer.load_state()
-            neu_eans = mailer.new_arrivals_to_announce(current, state)
-            if not neu_eans:
-                print("Keine neue Ware seit der letzten Mail – nichts zu verschicken.")
-                return
-            if state["zuletzt"] == date.today().isoformat() and "--force" not in flags:
-                print(f"{len(neu_eans)} neue Artikel warten, heute wurde aber schon verschickt – morgen geht's raus.")
-                return
-        sende = cmd == "mail-send" or (cmd == "mail-neu" and "--vorschau" not in flags)
+        absender = os.getenv("MAIL_FROM", "marc@neobution.com")
+        name = os.getenv("MAIL_NAME", "Marc Knieb")
         signatur = mailer.SIGNATUR.read_text() if mailer.SIGNATUR.exists() else ""
-        seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
-        for liste in args:
-            recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
-            seen |= {r.email for r in recipients}
-            mails = mailer.build_all(recipients, current, os.getenv("MAIL_FROM", "marc@neobution.com"),
-                                     os.getenv("MAIL_NAME", "Marc Knieb"), neu_eans, signatur)
-            folder = mailer.write_preview(mails, Path(liste).stem)
-            print(f"{Path(liste).name}: {len(mails)} Mails → {folder}/vorschau.html")
-            if sende:
-                log = mailer.send_all(mails, test_to)
-                print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
-        if cmd == "mail-neu" and sende and not test_to:
-            mailer.mark_announced(state, neu_eans)
+
+        def build(neu_eans):
+            seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
+            out = {}
+            for liste in args:
+                recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
+                seen |= {r.email for r in recipients}
+                out[Path(liste).stem] = mailer.build_all(recipients, current, absender, name, neu_eans, signatur)
+            return out
+
+        def send(by_list):
+            for stem, mails in by_list.items():
+                folder = mailer.write_preview(mails, stem)
+                print(f"{stem}: {len(mails)} Mails → {folder}/vorschau.html")
+                if not ("--vorschau" in flags):
+                    log = mailer.send_all(mails, test_to)
+                    print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
+
+        if cmd != "mail-neu":
+            if cmd == "mail-preview":
+                flags.add("--vorschau")
+            send(build(None))
+            return
+
+        state = mailer.load_state()
+        antrag = state.get("antrag")
+        if antrag:
+            antwort = freigabe.check_answer(antrag["kennung"])
+            if antwort == "ja":
+                eans = set(antrag["eans"])
+                send(build(eans))
+                if "--vorschau" not in flags and not test_to:
+                    mailer.mark_announced(state, eans)
+                print(f"Freigabe {antrag['kennung']} erhalten – verschickt.")
+            elif antwort == "nein":
+                mailer.mark_announced(state, set(antrag["eans"]))  # diese Artikel nicht erneut anfragen
+                print(f"Freigabe {antrag['kennung']} abgelehnt – verworfen.")
+            elif freigabe.expired(antrag):
+                state.pop("antrag"); mailer.save_state(state)
+                print(f"Freigabe {antrag['kennung']} ohne Antwort verfallen.")
+            else:
+                print(f"Warte auf Freigabe {antrag['kennung']}.")
+            return
+
+        neu_eans = mailer.new_arrivals_to_announce(current, state)
+        if not neu_eans:
+            print("Keine neue Ware seit der letzten Mail – nichts zu verschicken.")
+            return
+        if state["zuletzt"] == date.today().isoformat() and "--force" not in flags:
+            print(f"{len(neu_eans)} neue Artikel warten, heute wurde aber schon verschickt – morgen geht's raus.")
+            return
+        by_list = build(neu_eans)
+        if "--ohne-freigabe" in flags:
+            send(by_list)
+            if "--vorschau" not in flags and not test_to:
+                mailer.mark_announced(state, neu_eans)
+            return
+        kennung = freigabe.new_request(state, neu_eans, by_list)
+        print(f"Freigabe-Mail {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None
     if cmd == "catalog" and os.getenv("PRODUCT_EXCEL_FILE"):
