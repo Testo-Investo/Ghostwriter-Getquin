@@ -129,7 +129,10 @@ def load_recipients(path: str | Path, sprache: str | None = None) -> list[Recipi
             if m and m not in ALLE:
                 marken |= KATEGORIEN.get(m) or {w for word in m.split() for w in KATEGORIEN.get(word, {word})}
         vorname = get(i_vor)
-        if vorname.lower() in ("team", "sales", "info"):
+        if vorname.lower() in ("team", "sales", "info", "sir", "guys", "zusammen", "einkauf"):
+            vorname = ""
+        if waehrung == "USD":
+            # Dubai-Liste: Namen und Adressen sind teils um eine Zeile verrutscht → neutral „Hi,“
             vorname = ""
         out.append(Recipient(get(i_firma) or email.split("@")[1], vorname, email, marken, sprache, waehrung))
     return out

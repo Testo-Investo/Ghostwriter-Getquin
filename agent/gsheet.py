@@ -17,14 +17,10 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
 def fetch_stock_csv(out: Path = Path("data/warenbestand.csv")) -> Path:
-    creds = service_account.Credentials.from_service_account_file(
-        os.environ["GOOGLE_SERVICE_ACCOUNT_FILE"], scopes=SCOPES
-    )
-    creds.refresh(Request())
     resp = requests.get(
         f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export",
         params={"format": "csv", "gid": "0"},
-        headers={"Authorization": f"Bearer {creds.token}"},
+        headers={"Authorization": f"Bearer {_token()}"},
         timeout=60,
     )
     resp.raise_for_status()
@@ -35,3 +31,52 @@ def fetch_stock_csv(out: Path = Path("data/warenbestand.csv")) -> Path:
     tmp.write_text(resp.text)
     tmp.replace(out)  # erst ersetzen, wenn der Abruf vollständig ist
     return out
+
+
+# Ordner „Ghostwriter Mailinglisten“ in Marcs Google Drive (mit dem Dienstkonto geteilt)
+LISTEN_ORDNER = "1Wb8dHpE8gImBG9gGiCrhrp5EoQKkJ3Vq"
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _token() -> str:
+    creds = service_account.Credentials.from_service_account_file(
+        os.environ["GOOGLE_SERVICE_ACCOUNT_FILE"], scopes=SCOPES
+    )
+    creds.refresh(Request())
+    return creds.token
+
+
+def fetch_mailing_lists(out_dir: Path = Path("data/mailinglisten")) -> list[Path]:
+    """Alle Google-Tabellen im Listen-Ordner als .xlsx holen; lokal gelöschte Listen entfernen.
+
+    Marc pflegt die Listen nur noch in Google Drive – jede Tabelle im Ordner ist eine Liste,
+    der Name steuert Sprache („engl“) und Währung („Dubai“)."""
+    headers = {"Authorization": f"Bearer {_token()}"}
+    resp = requests.get(
+        "https://www.googleapis.com/drive/v3/files",
+        params={
+            "q": f"'{LISTEN_ORDNER}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+            "fields": "files(id,name)",
+        },
+        headers=headers,
+        timeout=60,
+    )
+    resp.raise_for_status()
+    files = resp.json().get("files", [])
+    if not files:
+        raise RuntimeError("Keine Listen im Ordner gefunden – ist er mit dem Dienstkonto geteilt?")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for f in files:
+        data = requests.get(
+            f"https://www.googleapis.com/drive/v3/files/{f['id']}/export",
+            params={"mimeType": XLSX}, headers=headers, timeout=60,
+        )
+        data.raise_for_status()
+        path = out_dir / f"{f['name']}.xlsx"
+        path.write_bytes(data.content)
+        saved.append(path)
+    for old in out_dir.glob("*.xlsx"):
+        if old not in saved:
+            old.unlink()  # Liste wurde in Drive gelöscht oder umbenannt
+    return sorted(saved)

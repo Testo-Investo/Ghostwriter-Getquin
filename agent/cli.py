@@ -2,6 +2,7 @@
 
   stock | watch | offer | profiles
   fetch-stock   Warenbestand aus Google Sheets laden (Server, Dienstkonto)
+  fetch-lists   Mailinglisten aus dem Google-Drive-Ordner holen
   smtp-test     eine Testmail an MAIL_FROM schicken (prüft IONOS-Zugang)
   mail-preview <liste.xlsx> [weitere Listen …]
   mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
@@ -41,12 +42,17 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"fetch-stock", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "fetch-stock":
         from .gsheet import fetch_stock_csv
         print(f"Warenbestand geladen → {fetch_stock_csv()}")
+        return
+    if cmd == "fetch-lists":
+        from .gsheet import fetch_mailing_lists
+        for path in fetch_mailing_lists():
+            print(f"  {path}")
         return
     if cmd == "smtp-test":
         mailer.smtp_test(os.environ["MAIL_FROM"])
