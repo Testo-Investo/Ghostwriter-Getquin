@@ -7,7 +7,7 @@
   mail-preview <liste.xlsx> [weitere Listen …]
   mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
   mail-neu <liste.xlsx> [weitere Listen …] [--vorschau] [--force] [--ohne-freigabe]
-      im Lauf um 10:05 (ANGEBOT_UM): bei neuer Ware (noch in keiner Mail) Freigabe-Mail an Marc;
+      im Lauf um 9:05 (ANGEBOT_UM): bei neuer Ware (noch in keiner Mail) Freigabe-Mail an Marc;
       stündlich: nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
   mail-sonder <liste.xlsx> [weitere Listen …]
       Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
@@ -20,6 +20,7 @@
 
 import json
 import os
+import secrets
 from datetime import date, datetime
 import sys
 from pathlib import Path
@@ -150,15 +151,25 @@ def main() -> None:
         name = os.getenv("MAIL_NAME", "Marc Knieb")
         signatur = mailer.SIGNATUR.read_text() if mailer.SIGNATUR.exists() else ""
 
-        def build(neu_eans, stock=None, feste=None):
+        def build(neu_eans, stock=None, feste=None, mix=None, gewaehlt=None):
             stock = current if stock is None else stock
             seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
             out = {}
             for liste in args:
                 recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
                 seen |= {r.email for r in recipients}
-                out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste)
+                out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste,
+                                                         mix, gewaehlt)
             return out
+
+        def mix_request(state, anlass):
+            """Gemischtes Angebot (auch ältere Artikel) zur Freigabe schicken."""
+            seed, gewaehlt = secrets.token_hex(4), set()
+            by_list = build(None, mix=seed, gewaehlt=gewaehlt)
+            kennung = freigabe.new_request(state, gewaehlt, by_list, anlass=anlass,
+                                           titel=f"Mix-Angebot (je Kunde bis {mailer.MAX_ARTIKEL} Artikel)")
+            state["antrag"]["mix"] = seed; mailer.save_state(state)
+            print(f"Freigabe-Mail {kennung} (Mix) an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
 
         def send(by_list, was="Das Angebot"):
             ergebnis = {}
@@ -234,10 +245,14 @@ def main() -> None:
             antwort = freigabe.check_answer(antrag["kennung"])
             if antwort == "ja":
                 eans = set(antrag["eans"])
-                send(build(eans, freigabe.approved_stock(current)))  # genau der angesehene Stand
+                send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))  # genau der angesehene Stand
                 if "--vorschau" not in flags and not test_to:
                     mailer.mark_announced(state, eans)
                 print(f"Freigabe {antrag['kennung']} erhalten – verschickt.")
+            elif antwort == "mix":
+                state.pop("antrag"); mailer.save_state(state)
+                print(f"Freigabe {antrag['kennung']}: Marc möchte einen Mix.")
+                mix_request(state, "Neu gemischt, wie gewünscht – neue und ältere Artikel")
             elif antwort == "nein":
                 mailer.mark_announced(state, set(antrag["eans"]))  # diese Artikel nicht erneut anfragen
                 print(f"Freigabe {antrag['kennung']} abgelehnt – verworfen.")
@@ -248,16 +263,16 @@ def main() -> None:
                 print(f"Warte auf Freigabe {antrag['kennung']}.")
             return
 
-        um = int(os.getenv("ANGEBOT_UM", "10"))  # Marc: ein Angebot am Tag, Freigabe-Mail um 10 Uhr reicht
+        um = int(os.getenv("ANGEBOT_UM", "9"))  # Marc: Freigabe-Mail um 9:05, Versand nach FREIGABE ab 10:05
         if datetime.now().hour != um and "--force" not in flags:
             print(f"Neues Angebot nur im Lauf um {um}:05 Uhr – jetzt nichts zu tun.")
             return
         neu_eans = mailer.new_arrivals_to_announce(current, state)
-        if not neu_eans:
-            print("Keine neue Ware seit der letzten Mail – nichts zu verschicken.")
-            return
         if state["zuletzt"] == date.today().isoformat() and "--force" not in flags:
-            print(f"{len(neu_eans)} neue Artikel warten, heute wurde aber schon verschickt – morgen geht's raus.")
+            print("Heute wurde schon verschickt – morgen geht's weiter.")
+            return
+        if not neu_eans:  # keine neue Ware: trotzdem ein Angebot, bunt gemischt aus dem Bestand
+            mix_request(state, "Keine neue Ware seit der letzten Mail – hier ein Mix aus dem Bestand")
             return
         by_list = build(neu_eans)
         if "--ohne-freigabe" in flags:

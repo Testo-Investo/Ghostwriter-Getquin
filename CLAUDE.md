@@ -74,16 +74,19 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Marcs Vorgaben:** Absender **marc@neobution.com**, Signatur folgt (→
   `config/signatur.txt` + `config/signatur_logo.png`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
   zum EZB-Tageskurs (aufgerundet), Lieferbedingung „ex works Germany“ für alle
-  englischen Listen. **Ein Angebot am Tag, um 10 Uhr (Marc, 29.10.: „nicht stündlich“)** →
-  `mail-neu`: Freigabe-Mail nur im Lauf um 10:05 (`ANGEBOT_UM`), mit Artikeln, die noch
-  in keiner Mail standen (Merkliste `data/mail_state.json`); FREIGABE-Antworten werden
-  weiter stündlich geprüft, höchstens eine Mail pro Tag.
+  englischen Listen. **Ein Angebot am Tag (Marc, 29.10.: „nicht stündlich“)** →
+  `mail-neu`: Freigabe-Mail nur im Lauf um **9:05** (`ANGEBOT_UM`), Versand nach FREIGABE
+  beim nächsten Lauf (ab 10:05); Artikel, die noch in keiner Mail standen (Merkliste
+  `data/mail_state.json`); höchstens eine Mail pro Tag. **Antwort „MIX“** → neue
+  Freigabe-Mail mit gemischtem Angebot aus dem ganzen Bestand, auch ältere Artikel
+  (`mailer.mix_items`, je Kunde bis zur Hälfte seine Marken, Zufall fest per Seed im
+  Antrag). Ohne neue Ware um 9:05 kommt automatisch ein Mix zur Freigabe.
   **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht
   der Versand raus; „STOPP“ verwirft, ohne Antwort verfällt der Antrag nach 3 Tagen
   (`agent/freigabe.py`). **Marc will Änderungen nur hier im Chat machen, nie per
-  Mail-Antwort** (Tippfehler-Risiko); die Antwort bleibt nur FREIGABE/STOPP. Eine
+  Mail-Antwort** (Tippfehler-Risiko); die Antwort bleibt nur FREIGABE/STOPP/MIX. Eine
   Freigabe gilt nur für genau den Code-Stand (git HEAD) und Bestand, den Marc gesehen
   hat; nach jedem Push wird ein offener Antrag ungültig und neu verschickt. Der Server
   holt Änderungen selbst (`git pull` am Anfang von `run_hourly.sh`).

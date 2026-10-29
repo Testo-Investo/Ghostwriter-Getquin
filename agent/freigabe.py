@@ -57,10 +57,12 @@ IMAP_HOST = "imap.ionos.de"
 GUELTIG_TAGE = 3
 JA = ("freigabe", "freigeben", "ok", "okay", "ja", "go", "senden")
 NEIN = ("stopp", "stop", "nein", "abbrechen", "verwerfen")
+MIX = ("mix", "mischen", "durchmischen")  # neu mischen, auch ältere Artikel (nur normales Angebot)
 
 
 def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
-                key: str = "antrag", anlass: str = "neue Ware ist da", prefix: str = "GW") -> str:
+                key: str = "antrag", anlass: str = "neue Ware ist da", prefix: str = "GW",
+                titel: str | None = None) -> str:
     """Freigabe-Mail an Marc schicken und den Antrag im State unter `key` merken."""
     kennung = f"{prefix}-{date.today():%m%d}-{secrets.token_hex(2).upper()}"
     gesamt = sum(len(m) for m in mails_by_list.values())
@@ -68,14 +70,17 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
     zeilen = "\n".join(f"  {name}: {len(m)} Mails" for name, m in mails_by_list.items())
     msg = EmailMessage()
     art = "Sonderangebot" if key != "antrag" else "Angebot"
-    msg["Subject"] = f"Freigabe nötig: {art} mit {len(eans)} Artikeln an {gesamt} Kontakte [{kennung}]"
+    titel = titel or f"{art} mit {len(eans)} Artikeln"
+    msg["Subject"] = f"Freigabe nötig: {titel} an {gesamt} Kontakte [{kennung}]"
     msg["From"] = formataddr(("Ghostwriter", os.environ["MAIL_FROM"]))
     msg["To"] = os.getenv("FREIGABE_AN", os.environ["MAIL_FROM"])
     kopf = (
         f"Moin Marc,\n\n{anlass}. Bereit zum Versand:\n\n{zeilen}\n  Gesamt: {gesamt} Mails\n\n"
         "Antworte einfach auf diese Mail:\n"
         "  FREIGABE  → wird spätestens in einer Stunde verschickt\n"
-        "  STOPP     → wird verworfen\n\n"
+        "  STOPP     → wird verworfen\n"
+        + ("  MIX       → neu gemischt, auch ältere Artikel – danach kommt eine neue Freigabe-Mail\n"
+           if key == "antrag" else "") + "\n"
         "Etwas ändern? Nicht hier antworten, sondern Claude im Chat sagen. Danach kommt\n"
         "automatisch eine neue Freigabe-Mail mit der geänderten Fassung – diese hier gilt dann nicht mehr.\n\n"
         f"Ohne Antwort verfällt der Antrag nach {GUELTIG_TAGE} Tagen.\n"
@@ -119,7 +124,7 @@ def _first_line(msg: email.message.Message) -> str:
 
 
 def check_answer(kennung: str) -> str | None:
-    """'ja', 'nein' oder None (noch keine Antwort)."""
+    """'ja', 'nein', 'mix' oder None (noch keine Antwort)."""
     with imaplib.IMAP4_SSL(IMAP_HOST) as imap:
         imap.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
         imap.select("INBOX", readonly=True)
@@ -133,6 +138,8 @@ def check_answer(kennung: str) -> str | None:
             line = _first_line(msg)
             if any(line.startswith(w) for w in NEIN):
                 return "nein"
+            if any(line.startswith(w) for w in MIX):
+                return "mix"
             if any(line.startswith(w) for w in JA):
                 return "ja"
     return None

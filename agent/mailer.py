@@ -159,6 +159,22 @@ def pick_items(recipient: Recipient, items: list[StockItem], neu_eans: set[str] 
     return ordered[:MAX_ARTIKEL]
 
 
+def mix_items(recipient: Recipient, items: list[StockItem], seed: str) -> list[StockItem]:
+    """„Mix“ (Marcs Antwort MIX): bunt gemischt aus dem ganzen anbietbaren Bestand, auch ältere
+    Artikel. Bis zur Hälfte aus seinen Marken, Rest aus allem anderen; neueste oben.
+
+    Der Zufall hängt nur an seed + Adresse – Freigabe-Beispiel und Versand sind identisch."""
+    import random
+    rnd = random.Random(f"{seed}:{recipient.email}")
+    pool = sorted(offerable(items), key=lambda i: i.position)
+    mine = [i for i in pool if i.hersteller.lower() in recipient.marken
+            or i.hersteller.lower().replace("!", "") in recipient.marken]
+    chosen = rnd.sample(mine, min(len(mine), MAX_ARTIKEL // 2))
+    rest = [i for i in pool if i not in chosen]
+    chosen += rnd.sample(rest, min(len(rest), MAX_ARTIKEL - len(chosen)))
+    return sorted(chosen, key=lambda i: i.position)
+
+
 def usd_rate() -> float:
     """EUR→USD-Referenzkurs der EZB vom Tag (gecacht); USD_KURS in .env überschreibt."""
     if os.getenv("USD_KURS"):
@@ -249,12 +265,22 @@ def _signature_html(sig: str) -> str:
 
 
 def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str,
-              neu_eans: set[str] | None = None, signatur: str = "", feste_artikel: list | None = None) -> list[Mail]:
-    """feste_artikel: Sonderangebot – alle bekommen genau diese Artikel, ohne Auswahl."""
+              neu_eans: set[str] | None = None, signatur: str = "", feste_artikel: list | None = None,
+              mix: str | None = None, gewaehlt: set[str] | None = None) -> list[Mail]:
+    """feste_artikel: Sonderangebot – alle bekommen genau diese Artikel, ohne Auswahl.
+    mix: Zufalls-Schlüssel für ein gemischtes Angebot (siehe mix_items).
+    gewaehlt: wird mit den EANs aller verwendeten Artikel gefüllt."""
     rate = usd_rate() if any(r.waehrung == "USD" for r in recipients) else None
     out = []
     for r in recipients:
-        chosen = feste_artikel if feste_artikel is not None else pick_items(r, items, neu_eans)
+        if feste_artikel is not None:
+            chosen = feste_artikel
+        elif mix:
+            chosen = mix_items(r, items, mix)
+        else:
+            chosen = pick_items(r, items, neu_eans)
+        if gewaehlt is not None:
+            gewaehlt |= {i.ean for i in chosen}
         if chosen:
             out.append((r, build_message(r, chosen, absender, absender_name, signatur, rate), len(chosen)))
     return out
