@@ -7,8 +7,8 @@
   mail-preview <liste.xlsx> [weitere Listen …]
   mail-send <liste.xlsx> [weitere Listen …] [--test deine@adresse.de]
   mail-neu <liste.xlsx> [weitere Listen …] [--vorschau] [--force] [--ohne-freigabe]
-      stündlicher Lauf: bei neuer Ware (noch in keiner Mail) Freigabe-Mail an Marc;
-      nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
+      im Lauf um 10:05 (ANGEBOT_UM): bei neuer Ware (noch in keiner Mail) Freigabe-Mail an Marc;
+      stündlich: nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
   mail-sonder <liste.xlsx> [weitere Listen …]
       Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
       --nachholen: freigegebenes Sonderangebot an alle, die es laut Protokoll noch nicht bekommen haben
@@ -20,7 +20,7 @@
 
 import json
 import os
-from datetime import date
+from datetime import date, datetime
 import sys
 from pathlib import Path
 
@@ -248,6 +248,10 @@ def main() -> None:
                 print(f"Warte auf Freigabe {antrag['kennung']}.")
             return
 
+        um = int(os.getenv("ANGEBOT_UM", "10"))  # Marc: ein Angebot am Tag, Freigabe-Mail um 10 Uhr reicht
+        if datetime.now().hour != um and "--force" not in flags:
+            print(f"Neues Angebot nur im Lauf um {um}:05 Uhr – jetzt nichts zu tun.")
+            return
         neu_eans = mailer.new_arrivals_to_announce(current, state)
         if not neu_eans:
             print("Keine neue Ware seit der letzten Mail – nichts zu verschicken.")

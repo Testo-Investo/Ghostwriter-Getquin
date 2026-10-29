@@ -74,9 +74,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Marcs Vorgaben:** Absender **marc@neobution.com**, Signatur folgt (→
   `config/signatur.txt` + `config/signatur_logo.png`). **5–10 Artikel pro Mail.** **Dubai-Liste in US-Dollar**
   zum EZB-Tageskurs (aufgerundet), Lieferbedingung „ex works Germany“ für alle
-  englischen Listen. **Versand immer dann, wenn neue Ware reinkommt** →
-  `mail-neu`: stündlich prüfen, verschickt nur Artikel, die noch in keiner Mail
-  standen (Merkliste `data/mail_state.json`), höchstens eine Mail pro Tag.
+  englischen Listen. **Ein Angebot am Tag, um 10 Uhr (Marc, 29.10.: „nicht stündlich“)** →
+  `mail-neu`: Freigabe-Mail nur im Lauf um 10:05 (`ANGEBOT_UM`), mit Artikeln, die noch
+  in keiner Mail standen (Merkliste `data/mail_state.json`); FREIGABE-Antworten werden
+  weiter stündlich geprüft, höchstens eine Mail pro Tag.
   **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht
@@ -114,7 +115,7 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Code unter `/opt/ghostwriter` (Clone dieses Repos), Einrichtung mit
   `deploy/install.sh` (fragt IONOS-Passwort unsichtbar ab → `.env`, chmod 600),
   stündlicher Lauf per systemd-Timer `ghostwriter.timer` (Mo–Fr 7–18 Uhr,
-  `deploy/run_hourly.sh`: `fetch-stock` + `mail-neu`). Google-Zugang auf dem
+  `deploy/run_hourly.sh`: fetch-stock, fetch-lists, postfach, mail-sonder, mail-neu). Google-Zugang auf dem
   Server über Dienstkonto, Schlüssel in `config/secrets/google.json` (nie committen).
 - **Zugangsdaten:** Niemals Passwörter im Chat oder im Repo. Azure-App +
   OAuth (Device-Code-Login) für Graph, API-Token für weclapp, alles in `.env`.
