@@ -46,7 +46,9 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list]) -> 
         "--- Beispiel (Text) ---\n\n" + beispiel.get_body(("plain",)).get_content()
     )
     for name, mails in mails_by_list.items():
-        msg.add_attachment(bytes(mails[0][1]), maintype="message", subtype="rfc822",
+        # als Datei (base64) anhängen – eingebettet als message/rfc822 hätte sie Zeilen
+        # über 998 Zeichen, die IONOS mit „501 line too long“ ablehnt
+        msg.add_attachment(bytes(mails[0][1]), maintype="application", subtype="octet-stream",
                            filename=f"Beispiel {name}.eml")
     mailer.send_raw(msg)
     state["antrag"] = {"kennung": kennung, "eans": sorted(eans), "erstellt": datetime.now().isoformat(timespec="minutes")}
