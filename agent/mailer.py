@@ -125,7 +125,7 @@ def load_recipients(path: str | Path, sprache: str | None = None, keine_sperre: 
     out, seen = [], set()
     for r in rows[1:]:
         get = lambda i: r[i] if i is not None and i < len(r) else ""
-        email = get(i_mail).strip().lower()
+        email = get(i_mail).strip().strip("'\"<>;,").lower()  # z. B. „…@bueromarkt-ag.de'“ (Tippfehler in der Liste)
         if not _EMAIL.match(email) or email in blocked or email in seen:
             continue
         seen.add(email)
@@ -409,6 +409,15 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
     finally:
         _trennen(smtp)
     return log, ok, fehler
+
+
+def heute_verschickt(mails: list[Mail]) -> bool:
+    """Ging heute schon mindestens eine dieser Mails (gleicher Betreff) raus?"""
+    log = OUTBOX / f"versand_{date.today().isoformat()}.csv"
+    if not log.exists():
+        return False
+    betreffe = {m[1]["Subject"] for m in mails}
+    return any(r["status"] == "gesendet" and r["betreff"] in betreffe for r in csv.DictReader(log.open(newline="")))
 
 
 def noch_offen(mails: list[Mail]) -> list[Mail]:

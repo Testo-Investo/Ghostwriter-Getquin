@@ -108,6 +108,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Adressen werden wie Rückläufer gelöscht. Nachholen: `mail-sonder --nachholen`
   (nur an Adressen ohne „gesendet“ mit gleichem Betreff im Protokoll; Betreff enthält
   das Datum → am selben Tag nachholen). Auswertung: `versand-status [Datum]`.
+  **Neue Kontakte am selben Tag:** ist das Sonderangebot heute schon raus, schickt jeder
+  weitere `mail-sonder`-Lauf es automatisch an neu eingetragene Kontakte nach. Die
+  mail-Befehle holen die Listen vorher selbst frisch aus Drive (auch von Hand gestartet).
+  Gleiche Adresse mehrfach in den Listen → nur eine Mail.
   **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
   Teams-Entwurf). Deutsch: „Preise netto, innerhalb Deutschlands frei Haus“,
   Ausland/Englisch: „Prices net, ex works Germany“.

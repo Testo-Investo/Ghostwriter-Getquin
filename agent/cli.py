@@ -139,6 +139,9 @@ def main() -> None:
         print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
         return
     if cmd in ("mail-preview", "mail-send", "mail-neu", "mail-sonder"):
+        if os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") and "--vorschau" not in sys.argv:
+            from .gsheet import fetch_mailing_lists
+            fetch_mailing_lists()  # immer mit dem neuesten Stand der Listen arbeiten, auch beim Befehl von Hand
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
         flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe", "--nachholen")}
@@ -176,6 +179,9 @@ def main() -> None:
             if "--nachholen" in flags:  # nur wer laut Protokoll noch nichts bekommen hat
                 by_list = {stem: offen for stem, mails in by_list.items() if (offen := mailer.noch_offen(mails))}
                 was += " (nachgeholt)"
+            if not by_list:
+                print("Alle haben es schon bekommen – nichts nachzuholen.")
+                return
             for stem, mails in by_list.items():
                 folder = mailer.write_preview(mails, stem)
                 print(f"{stem}: {len(mails)} Mails → {folder}/vorschau.html")
@@ -200,6 +206,13 @@ def main() -> None:
                     return
                 send(build(None, feste=angebot[2]), was="Das Sonderangebot")  # schon freigegeben, nur Lücken füllen
                 return
+            if angebot and angebot[0] in erledigt:
+                # Heute freigegeben und verschickt? Dann bekommen neu eingetragene Kontakte es noch nach.
+                by_list = build(None, feste=angebot[2])
+                if mailer.heute_verschickt([m for mails in by_list.values() for m in mails]):
+                    flags.add("--nachholen")
+                    send(by_list, was="Das Sonderangebot")
+                    return
             if angebot is None or angebot[0] in erledigt:
                 print("Kein offenes Sonderangebot.")
                 return
