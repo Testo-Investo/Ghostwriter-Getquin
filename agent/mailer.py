@@ -41,7 +41,8 @@ PAUSE_SEKUNDEN = 4          # Abstand zwischen zwei Mails, schont Reputation und
 MIN_ARTIKEL = 5             # Marc: „immer so 5 bis 10 Artikel“
 MAX_ARTIKEL = 10
 EZB_KURSE = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
-STATE = Path("data/mail_state.json")  # welche EANs schon per Mail angekündigt wurden
+STATE = Path("data/mail_state.json")
+LOGO = Path("data/signatur_logo.png")  # Banner über der Signatur (optional)  # welche EANs schon per Mail angekündigt wurden
 ABMELDUNGEN = Path("data/abmeldungen.txt")
 OUTBOX = Path("data/outbox")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
@@ -185,6 +186,7 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
     eur = lambda v: _price(r, v, rate)
     lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{i.verfuegbar}x\n{eur(i.angebotspreis)}" for i in items)
     sig = signatur.strip() or absender_name
+    logo_cid = make_msgid(domain="neobution.com")
     text = f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n{t['outro']}\n\n{sig}\n\n{t['abmelden']}\n"
     rows = "".join(
         f"<tr><td>{html.escape(i.artikel)}</td><td>{i.ean}</td><td style='text-align:right'>{i.verfuegbar}x</td>"
@@ -196,7 +198,8 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
         "<table cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px'>"
         f"<tr style='background:#eee'>{kopf}</tr>{rows}</table>"
         f"<p>{html.escape(t['outro']).replace(chr(10), '<br>')}</p>"
-        f"<p>{html.escape(sig).replace(chr(10), '<br>')}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
+        + (f"<p><img src='cid:{logo_cid[1:-1]}' alt='Neobution' width='420' style='max-width:100%'></p>" if LOGO.exists() else "")
+        + f"<p style='font-size:13px'>{_signature_html(sig)}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
     )
     msg = EmailMessage()
     msg["Subject"] = t["betreff"].format(datum=heute, marke=items[0].hersteller)
@@ -206,10 +209,27 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
     msg["List-Unsubscribe"] = f"<mailto:{absender}?subject=Abmelden>"
     msg.set_content(text)
     msg.add_alternative(body, subtype="html")
+    if LOGO.exists():
+        msg.get_payload()[1].add_related(LOGO.read_bytes(), "image", "png", cid=logo_cid)
     return msg
 
 
 Mail = tuple[Recipient, EmailMessage, int]  # Empfänger, Mail, Anzahl Artikel
+
+
+def _signature_html(sig: str) -> str:
+    """Erste Zeile (Name) fett, Website verlinkt, Rechtliches klein und grau."""
+    out = []
+    for n, line in enumerate(sig.splitlines()):
+        esc = html.escape(line)
+        if n == 0:
+            esc = f"<b>{esc}</b>"
+        elif line.startswith("www."):
+            esc = f"<a href='https://{esc}'>{esc}</a>"
+        elif "|" in line or line.startswith("Diese E-Mail"):
+            esc = f"<span style='color:#888;font-size:11px'>{esc}</span>"
+        out.append(esc)
+    return "<br>".join(out)
 
 
 def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str,
@@ -247,6 +267,9 @@ def write_preview(mails: list[Mail], name: str = "") -> Path:
     for n, (r, msg, _) in enumerate(mails, 1):
         (folder / f"{n:03d}_{r.email.replace('@', '_at_')}.eml").write_bytes(bytes(msg))
         html_part = msg.get_body(("html",)).get_content()
+        if LOGO.exists():  # in der Vorschau das eingebettete Logo direkt anzeigen
+            import base64
+            html_part = re.sub(r"cid:[^']+", "data:image/png;base64," + base64.b64encode(LOGO.read_bytes()).decode(), html_part)
         cards.append(f"<section style='border:1px solid #ccc;margin:16px 0;padding:12px'><b>An:</b> {html.escape(msg['To'])}<br>"
                      f"<b>Betreff:</b> {html.escape(msg['Subject'])}<hr>{html_part}</section>")
     (folder / "vorschau.html").write_text(f"<meta charset='utf-8'><h1>{len(mails)} Angebots-Mails</h1>{''.join(cards)}")
