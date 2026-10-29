@@ -185,6 +185,10 @@ def aufraeumen(listen: list[Path]) -> dict:
                 if ist_abwesend(msg):
                     abwesend.append(uid)
         kaputt |= {a: g for a, g in mailer.permanent_failures().items() if a in in_listen}  # beim Versand abgelehnt (550)
+        if UNZUSTELLBAR.exists():  # früher gesperrt, aber noch in einer Tabelle (z. B. Löschen damals gescheitert)
+            for a in UNZUSTELLBAR.read_text().split():
+                if a in in_listen:
+                    kaputt.setdefault(a, "früher als unzustellbar erkannt")
         geloescht, fehler = entfernen(kaputt, in_listen)
         ziel_abw = ziel_rueck = None
         for ordner, (abwesend, rueck) in funde.items():
@@ -237,14 +241,28 @@ def _sperren(adressen: dict) -> None:
     UNZUSTELLBAR.write_text("\n".join(sorted(alt | set(adressen))) + "\n")
 
 
+def _klartext(grund: str) -> str:
+    """Technische Fehlermeldung → kurzer Grund für Marc."""
+    g = grund.lower()
+    if "dns" in g or "domain" in g and ("not found" in g or "does not exist" in g):
+        return "Domain gibt es nicht"
+    if any(w in g for w in ("does not exist", "user unknown", "no such user", "not found", "5.1.1",
+                            "mailbox unavailable", "recipient address rejected", "unknown recipient")):
+        return "Postfach gibt es nicht"
+    if "früher" in g:
+        return "schon vorher als unzustellbar erkannt"
+    return "dauerhaft unzustellbar"
+
+
 def _info_mail(geloescht: list[tuple[str, str, str]]) -> None:
     msg = EmailMessage()
     msg["Subject"] = f"Ghostwriter: {len(geloescht)} unzustellbare Adressen aus den Listen gelöscht"
     msg["From"] = formataddr(("Ghostwriter", os.environ["MAIL_FROM"]))
     msg["To"] = os.getenv("FREIGABE_AN", os.environ["MAIL_FROM"])
-    zeilen = "\n".join(f"  {a}  ({liste})\n      Grund: {g}" for a, liste, g in sorted(geloescht, key=lambda x: (x[1], x[0])))
+    zeilen = "\n".join(f"  {a}  ({liste}) – {_klartext(g)}" for a, liste, g in sorted(geloescht, key=lambda x: (x[1], x[0])))
     msg.set_content(
-        "Moin Marc,\n\ndiese Adressen gibt es nicht mehr – die Mails kamen als unzustellbar zurück.\n"
+        "Moin Marc,\n\ndiese Adressen gibt es nicht mehr – die Mails kamen als unzustellbar zurück\n"
+        "oder wurden vom Mailserver abgelehnt.\n"
         "Ich habe sie aus den Google-Tabellen im Ordner „Ghostwriter Mailinglisten“ gelöscht:\n\n"
         f"{zeilen}\n\n"
         "Die Rückläufer-Mails liegen im Ordner „Unzustellbar“. Soll eine Adresse doch wieder rein,\n"
