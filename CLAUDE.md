@@ -86,6 +86,13 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Freigabe gilt nur für genau den Code-Stand (git HEAD) und Bestand, den Marc gesehen
   hat; nach jedem Push wird ein offener Antrag ungültig und neu verschickt. Der Server
   holt Änderungen selbst (`git pull` am Anfang von `run_hourly.sh`).
+  **Sonderangebote (manuell):** Marc postet im Chat, was der Einkauf schickt (z. B.
+  WhatsApp). Claude schreibt daraus `config/sonderangebot.json` mit neuer `id`
+  (`{"id","anlass","artikel":[{"artikel","ean","menge","preis"}]}`, Preise € netto),
+  zeigt Marc die Artikel zur Kontrolle, committet und pusht. Der Server schickt
+  beim nächsten Lauf (Mo–Fr 7–18 Uhr) eine Freigabe-Mail [SO-…]; nach FREIGABE geht
+  es an alle Listen (alle bekommen dieselben Artikel, Dubai in $). Jede `id` nur
+  einmal; zählt nicht gegen „eine Mail pro Tag“ (`agent/sonder.py`, `mail-sonder`).
   **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
   Teams-Entwurf). Deutsch: „Preise netto, innerhalb Deutschlands frei Haus“,
   Ausland/Englisch: „Prices net, ex works Germany“.
@@ -137,5 +144,6 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/profiles.py` – Kundenprofile (Marken, EANs) und passende Artikel, Angebotsentwurf in Marcs Format
 - `agent/mailer.py` – Angebots-Serienmail über IONOS (Vorschau, Test, Versand, Protokoll)
 - `agent/freigabe.py` – Freigabe per Antwort-Mail (Antrag an Marc, IMAP-Prüfung der Antwort)
+- `agent/sonder.py` – Sonderangebot aus `config/sonderangebot.json` (aus dem Chat)
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)

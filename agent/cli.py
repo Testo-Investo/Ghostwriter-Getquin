@@ -9,6 +9,8 @@
   mail-neu <liste.xlsx> [weitere Listen …] [--vorschau] [--force] [--ohne-freigabe]
       stündlicher Lauf: bei neuer Ware (noch in keiner Mail) Freigabe-Mail an Marc;
       nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
+  mail-sonder <liste.xlsx> [weitere Listen …]
+      Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
   whoami | catalog | export-chats
 """
 
@@ -22,7 +24,7 @@ from dotenv import load_dotenv
 
 from .catalog import download_public_excel, load_catalog, parse_products
 from .graph import GraphClient
-from . import freigabe, mailer
+from . import freigabe, mailer, sonder
 from .profiles import brands_from_stock, build_profile, export_rows
 from .teams_file import load_chats
 from .offer import build_offer, instant_offer, render_text
@@ -42,7 +44,7 @@ def _save_catalog(products: list[dict]) -> None:
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
-    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "whoami", "catalog", "export-chats"}:
+    if cmd not in {"fetch-stock", "fetch-lists", "smtp-test", "stock", "watch", "offer", "profiles", "mail-preview", "mail-send", "mail-neu", "mail-sonder", "whoami", "catalog", "export-chats"}:
         print(__doc__)
         return
     if cmd == "fetch-stock":
@@ -103,7 +105,7 @@ def main() -> None:
         Path("data/kunden.json").write_text(json.dumps(rows, ensure_ascii=False, indent=1))
         print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
         return
-    if cmd in ("mail-preview", "mail-send", "mail-neu"):
+    if cmd in ("mail-preview", "mail-send", "mail-neu", "mail-sonder"):
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
         flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe")}
@@ -116,14 +118,14 @@ def main() -> None:
         name = os.getenv("MAIL_NAME", "Marc Knieb")
         signatur = mailer.SIGNATUR.read_text() if mailer.SIGNATUR.exists() else ""
 
-        def build(neu_eans, stock=None):
+        def build(neu_eans, stock=None, feste=None):
             stock = current if stock is None else stock
             seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
             out = {}
             for liste in args:
                 recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
                 seen |= {r.email for r in recipients}
-                out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur)
+                out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste)
             return out
 
         def send(by_list):
@@ -133,6 +135,38 @@ def main() -> None:
                 if not ("--vorschau" in flags):
                     log = mailer.send_all(mails, test_to)
                     print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
+
+        if cmd == "mail-sonder":
+            angebot = sonder.load()
+            state = mailer.load_state()
+            erledigt = state.setdefault("sonder_erledigt", [])
+            if angebot is None or angebot[0] in erledigt:
+                print("Kein offenes Sonderangebot.")
+                return
+            sid, anlass, artikel = angebot
+            antrag = state.get("sonder_antrag")
+            if antrag and (antrag.get("id") != sid or antrag.get("version") != freigabe.code_version()):
+                state.pop("sonder_antrag"); mailer.save_state(state)
+                print(f"Sonder-Freigabe {antrag['kennung']} ist veraltet – neue Freigabe-Mail folgt.")
+                antrag = None
+            if antrag:
+                antwort = freigabe.check_answer(antrag["kennung"])
+                if antwort == "ja":
+                    send(build(None, feste=artikel))
+                if antwort in ("ja", "nein"):
+                    erledigt.append(sid); state.pop("sonder_antrag"); mailer.save_state(state)
+                    print(f"Sonderangebot {sid}: {'verschickt' if antwort == 'ja' else 'verworfen'}.")
+                elif freigabe.expired(antrag):
+                    erledigt.append(sid); state.pop("sonder_antrag"); mailer.save_state(state)
+                    print(f"Sonder-Freigabe {antrag['kennung']} ohne Antwort verfallen.")
+                else:
+                    print(f"Warte auf Sonder-Freigabe {antrag['kennung']}.")
+                return
+            kennung = freigabe.new_request(state, {a.ean for a in artikel}, build(None, feste=artikel),
+                                           key="sonder_antrag", anlass=anlass, prefix="SO")
+            state["sonder_antrag"]["id"] = sid; mailer.save_state(state)
+            print(f"Sonder-Freigabe {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt.")
+            return
 
         if cmd != "mail-neu":
             if cmd == "mail-preview":

@@ -244,11 +244,12 @@ def _signature_html(sig: str) -> str:
 
 
 def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str,
-              neu_eans: set[str] | None = None, signatur: str = "") -> list[Mail]:
+              neu_eans: set[str] | None = None, signatur: str = "", feste_artikel: list | None = None) -> list[Mail]:
+    """feste_artikel: Sonderangebot – alle bekommen genau diese Artikel, ohne Auswahl."""
     rate = usd_rate() if any(r.waehrung == "USD" for r in recipients) else None
     out = []
     for r in recipients:
-        chosen = pick_items(r, items, neu_eans)
+        chosen = feste_artikel if feste_artikel is not None else pick_items(r, items, neu_eans)
         if chosen:
             out.append((r, build_message(r, chosen, absender, absender_name, signatur, rate), len(chosen)))
     return out

@@ -9,6 +9,7 @@ main() {
   git pull -q --ff-only   # Änderungen aus dem Chat automatisch übernehmen
   $PY -m agent.cli fetch-stock
   $PY -m agent.cli fetch-lists
+  $PY -m agent.cli mail-sonder data/mailinglisten/*.xlsx || echo "Sonderangebot fehlgeschlagen"
   $PY -m agent.cli mail-neu data/mailinglisten/*.xlsx
 }
 main "$@"

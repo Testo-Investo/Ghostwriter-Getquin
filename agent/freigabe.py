@@ -59,18 +59,20 @@ JA = ("freigabe", "freigeben", "ok", "okay", "ja", "go", "senden")
 NEIN = ("stopp", "stop", "nein", "abbrechen", "verwerfen")
 
 
-def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list]) -> str:
-    """Freigabe-Mail an Marc schicken und den Antrag im State merken."""
-    kennung = f"GW-{date.today():%m%d}-{secrets.token_hex(2).upper()}"
+def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
+                key: str = "antrag", anlass: str = "neue Ware ist da", prefix: str = "GW") -> str:
+    """Freigabe-Mail an Marc schicken und den Antrag im State unter `key` merken."""
+    kennung = f"{prefix}-{date.today():%m%d}-{secrets.token_hex(2).upper()}"
     gesamt = sum(len(m) for m in mails_by_list.values())
     beispiel = next(iter(mails_by_list.values()))[0][1]
     zeilen = "\n".join(f"  {name}: {len(m)} Mails" for name, m in mails_by_list.items())
     msg = EmailMessage()
-    msg["Subject"] = f"Freigabe nötig: Angebot mit {len(eans)} neuen Artikeln an {gesamt} Kontakte [{kennung}]"
+    art = "Sonderangebot" if key != "antrag" else "Angebot"
+    msg["Subject"] = f"Freigabe nötig: {art} mit {len(eans)} Artikeln an {gesamt} Kontakte [{kennung}]"
     msg["From"] = formataddr(("Ghostwriter", os.environ["MAIL_FROM"]))
     msg["To"] = os.getenv("FREIGABE_AN", os.environ["MAIL_FROM"])
     kopf = (
-        f"Moin Marc,\n\nneue Ware ist da. Bereit zum Versand:\n\n{zeilen}\n  Gesamt: {gesamt} Mails\n\n"
+        f"Moin Marc,\n\n{anlass}. Bereit zum Versand:\n\n{zeilen}\n  Gesamt: {gesamt} Mails\n\n"
         "Antworte einfach auf diese Mail:\n"
         "  FREIGABE  → wird spätestens in einer Stunde verschickt\n"
         "  STOPP     → wird verworfen\n\n"
@@ -97,7 +99,7 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list]) -> 
                            filename=f"Beispiel {name}.eml")
     mailer.send_raw(msg)
     shutil.copyfile(mailer.STOCK_CSV, BESTAND_ANTRAG)
-    state["antrag"] = {"kennung": kennung, "eans": sorted(eans), "version": code_version(),
+    state[key] = {"kennung": kennung, "eans": sorted(eans), "version": code_version(),
                        "erstellt": datetime.now().isoformat(timespec="minutes")}
     mailer.save_state(state)
     return kennung
