@@ -136,13 +136,8 @@ def _verschieben(imap: imaplib.IMAP4, uids: list[bytes], ordner: str) -> None:
 
 def aufraeumen(listen: list[Path]) -> dict:
     """Posteingang prüfen. Gibt {'abwesend': n, 'geloescht': [(adresse, liste, grund)], 'fehler', 'gesperrt'} zurück."""
-    from .gsheet import remove_addresses
-
     eigene = {os.environ["MAIL_FROM"].lower(), os.environ["IONOS_SMTP_USER"].lower()}
-    in_listen = {}
-    for pfad in listen:
-        for r in mailer.load_recipients(pfad, keine_sperre=True):
-            in_listen.setdefault(r.email, pfad.stem)
+    in_listen = listen_adressen(listen)
     abwesend, rueck, kaputt = [], [], {}
     with imaplib.IMAP4_SSL("imap.ionos.de") as imap:
         imap.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
@@ -169,21 +164,41 @@ def aufraeumen(listen: list[Path]) -> dict:
                 continue
             if ist_abwesend(msg):
                 abwesend.append(uid)
-        geloescht, fehler = [], ""
-        if kaputt:
-            _sperren(kaputt)  # ab sofort nicht mehr anschreiben, auch wenn das Löschen unten scheitert
-            try:
-                entfernt = remove_addresses(set(kaputt))  # {adresse: [Listenname, …]}
-                geloescht = [(a, ", ".join(entfernt.get(a) or [in_listen[a]]), g) for a, g in kaputt.items()]
-            except Exception as e:  # z. B. keine Bearbeiten-Rechte: Rückläufer bleiben liegen, nächster Lauf versucht es erneut
-                fehler = str(e)[:300]
-                rueck = []
+        kaputt |= {a: g for a, g in mailer.permanent_failures().items() if a in in_listen}  # beim Versand abgelehnt (550)
+        geloescht, fehler = entfernen(kaputt, in_listen)
+        if fehler:
+            rueck = []  # Rückläufer bleiben liegen, nächster Lauf versucht es erneut
         _verschieben(imap, abwesend, _ordner(imap, ORDNER_ABWESEND) if abwesend else "")
         _verschieben(imap, rueck, _ordner(imap, ORDNER_RUECKLAEUFER) if rueck else "")
-    if geloescht:
-        _info_mail(geloescht)
-    return {"abwesend": len(abwesend), "geloescht": geloescht, "fehler": fehler,
-            "gesperrt": sorted(kaputt) if fehler else []}
+    return {"geprueft": len(data[0].split()), "abwesend": len(abwesend), "rueck": len(rueck),
+            "geloescht": geloescht, "fehler": fehler, "gesperrt": sorted(kaputt) if fehler else []}
+
+
+def entfernen(kaputt: dict[str, str], in_listen: dict[str, str]) -> tuple[list, str]:
+    """Adressen sperren, aus den Google-Tabellen löschen und Marc informieren.
+
+    Gibt ([(adresse, liste, grund)], Fehlertext) zurück. Schon gelöschte Adressen
+    (stehen in keiner Liste mehr) werden übersprungen."""
+    kaputt = {a: g for a, g in kaputt.items() if a in in_listen}
+    if not kaputt:
+        return [], ""
+    from .gsheet import remove_addresses
+    _sperren(kaputt)  # ab sofort nicht mehr anschreiben, auch wenn das Löschen scheitert
+    try:
+        entfernt = remove_addresses(set(kaputt))  # {adresse: [Listenname, …]}
+    except Exception as e:  # z. B. fehlende Rechte
+        return [], str(e)[:300]
+    geloescht = [(a, ", ".join(entfernt.get(a) or [in_listen[a]]), g) for a, g in kaputt.items()]
+    _info_mail(geloescht)
+    return geloescht, ""
+
+
+def listen_adressen(listen: list[Path]) -> dict[str, str]:
+    in_listen = {}
+    for pfad in listen:
+        for r in mailer.load_recipients(pfad, keine_sperre=True):
+            in_listen.setdefault(r.email, pfad.stem)
+    return in_listen
 
 
 def _sperren(adressen: dict) -> None:

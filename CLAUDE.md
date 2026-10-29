@@ -99,6 +99,11 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   zusätzlich gesperrt in `data/unzustellbar.txt`, Mail in Ordner „Unzustellbar“,
   Info-Mail an Marc mit den Adressen. Nach jedem Versand **Versand-Bericht** an Marc
   („… verschickt – x von y Mails raus“) – Marc muss nicht ins Server-Log (journalctl).
+  **IONOS-Limit: 20 Mails pro SMTP-Verbindung** → `send_all` verbindet alle 15 Mails neu
+  (am 29.10. gingen deshalb nur 75 von 184 raus). Beim Versand mit 550 abgelehnte
+  Adressen werden wie Rückläufer gelöscht. Nachholen: `mail-sonder --nachholen`
+  (nur an Adressen ohne „gesendet“ mit gleichem Betreff im Protokoll; Betreff enthält
+  das Datum → am selben Tag nachholen). Auswertung: `versand-status [Datum]`.
   **Mengen ab 1.000 Stück als „1.000+“** (Mail, Dashboard,
   Teams-Entwurf). Deutsch: „Preise netto, innerhalb Deutschlands frei Haus“,
   Ausland/Englisch: „Prices net, ex works Germany“.

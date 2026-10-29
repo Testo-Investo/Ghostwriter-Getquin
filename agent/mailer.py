@@ -318,36 +318,92 @@ def smtp_test(to: str) -> None:
         smtp.send_message(msg)
 
 
+SESSION_MAX = 15  # IONOS nimmt pro Verbindung nur 20 Mails an („Mails per session limit exceeded“)
+_DAUERHAFT = re.compile(r"\(5\d\d,")  # 5xx = Adresse/Domain gibt es nicht
+
+
+def dauerhaft(status: str) -> bool:
+    """Fehler, bei dem ein neuer Versuch nichts bringt (z. B. 550 Domain existiert nicht)."""
+    return bool(_DAUERHAFT.search(status))
+
+
+def _verbinden() -> smtplib.SMTP:
+    smtp = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+    smtp.starttls(context=ssl.create_default_context())
+    smtp.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
+    return smtp
+
+
+def _trennen(smtp: smtplib.SMTP) -> None:
+    try:
+        smtp.quit()
+    except smtplib.SMTPException:
+        smtp.close()
+
+
 def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, list[tuple[str, str]]]:
     """Verschickt einzeln über IONOS. Mit test_to geht alles an diese Adresse statt an die Kunden.
 
+    Nach SESSION_MAX Mails wird neu verbunden; wird eine Mail wegen des Limits pro
+    Verbindung abgelehnt, wird neu verbunden und noch einmal versucht.
     Gibt (Protokoll, Anzahl gesendet, [(adresse, fehler)]) zurück."""
     ok, fehler = 0, []
-    user, password = os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"]
     log = OUTBOX / f"versand_{date.today().isoformat()}.csv"
     log.parent.mkdir(parents=True, exist_ok=True)
     new_log = not log.exists()
-    with log.open("a", newline="") as f, smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
-        w = csv.writer(f)
-        if new_log:
-            w.writerow(["zeit", "firma", "email", "betreff", "artikel", "status"])
-        smtp.starttls(context=ssl.create_default_context())
-        smtp.login(user, password)
-        for r, msg, n in mails:
-            if test_to:
-                del msg["To"]
-                msg["To"] = test_to
-            try:
-                smtp.send_message(msg)
-                status = "test" if test_to else "gesendet"
-                ok += 1
-            except smtplib.SMTPException as e:
-                status = f"fehler: {e}"
-                fehler.append((r.email, str(e)[:160]))
-            w.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), r.firma, r.email, msg["Subject"], n, status])
-            f.flush()
-            time.sleep(PAUSE_SEKUNDEN)
+    smtp, in_sitzung = _verbinden(), 0
+    try:
+        with log.open("a", newline="") as f:
+            w = csv.writer(f)
+            if new_log:
+                w.writerow(["zeit", "firma", "email", "betreff", "artikel", "status"])
+            for r, msg, n in mails:
+                if test_to:
+                    del msg["To"]
+                    msg["To"] = test_to
+                for versuch in range(2):
+                    if in_sitzung >= SESSION_MAX or versuch:
+                        _trennen(smtp)
+                        smtp, in_sitzung = _verbinden(), 0
+                    try:
+                        in_sitzung += 1
+                        smtp.send_message(msg)
+                        status = "test" if test_to else "gesendet"
+                        ok += 1
+                        break
+                    except smtplib.SMTPException as e:
+                        status = f"fehler: {e}"
+                        if not (re.search(r"\(4[25]\d", status) or isinstance(e, smtplib.SMTPServerDisconnected)):
+                            break  # nur vorübergehende Fehler (Limit, Verbindung weg) lohnen einen 2. Versuch
+                if not status.startswith(("gesendet", "test")):
+                    fehler.append((r.email, status[8:168]))
+                w.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), r.firma, r.email, msg["Subject"], n, status])
+                f.flush()
+                time.sleep(PAUSE_SEKUNDEN)
+    finally:
+        _trennen(smtp)
     return log, ok, fehler
+
+
+def noch_offen(mails: list[Mail]) -> list[Mail]:
+    """Nur die Mails, die laut Protokoll noch nicht mit genau diesem Betreff angekommen sind
+    und deren Adresse nicht dauerhaft unzustellbar war (zum Nachholen nach Abbrüchen)."""
+    erledigt = set()
+    for log in OUTBOX.glob("versand_*.csv"):
+        for row in csv.DictReader(log.open(newline="")):
+            if row["status"] == "gesendet" or dauerhaft(row["status"]):
+                erledigt.add((row["email"], row["betreff"]))
+    return [m for m in mails if (m[0].email, m[1]["Subject"]) not in erledigt]
+
+
+def permanent_failures() -> dict[str, str]:
+    """Adressen, die beim Versand dauerhaft abgelehnt wurden (5xx), mit Grund."""
+    out = {}
+    for log in OUTBOX.glob("versand_*.csv"):
+        for row in csv.DictReader(log.open(newline="")):
+            if dauerhaft(row["status"]):
+                out[row["email"]] = re.sub(r"\s+", " ", row["status"][8:])[:160]
+    return out
 
 
 def versand_bericht(was: str, ergebnis: dict[str, tuple[int, int, list]]) -> None:

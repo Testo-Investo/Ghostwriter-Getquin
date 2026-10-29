@@ -11,6 +11,7 @@
       nach Antwort „FREIGABE“ Versand an alle, höchstens einmal pro Tag
   mail-sonder <liste.xlsx> [weitere Listen …]
       Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
+      --nachholen: freigegebenes Sonderangebot an alle, die es laut Protokoll noch nicht bekommen haben
   postfach <liste.xlsx> [weitere Listen …]
       Abwesenheitsnotizen wegsortieren, Rückläufer-Adressen aus den Listen löschen
   versand-status [JJJJ-MM-TT]   Protokoll eines Tages auswerten (Betreff × Status)
@@ -79,8 +80,8 @@ def main() -> None:
     if cmd == "postfach":
         from . import postfach
         ergebnis = postfach.aufraeumen([Path(a) for a in sys.argv[2:]])
-        print(f"Postfach: {ergebnis['abwesend']} Abwesenheitsnotizen weggeräumt, "
-              f"{len(ergebnis['geloescht'])} unzustellbare Adressen gelöscht.")
+        print(f"Postfach: {ergebnis['geprueft']} Mails geprüft, {ergebnis['abwesend']} Abwesenheitsnotizen und "
+              f"{ergebnis['rueck']} Rückläufer weggeräumt, {len(ergebnis['geloescht'])} unzustellbare Adressen gelöscht.")
         for adresse, liste, grund in ergebnis["geloescht"]:
             print(f"  {adresse} ({liste}): {grund}")
         if ergebnis["fehler"]:
@@ -139,7 +140,7 @@ def main() -> None:
     if cmd in ("mail-preview", "mail-send", "mail-neu", "mail-sonder"):
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
-        flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe")}
+        flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe", "--nachholen")}
         test_to = None
         if "--test" in args:
             test_to = args[args.index("--test") + 1]
@@ -161,6 +162,9 @@ def main() -> None:
 
         def send(by_list, was="Das Angebot"):
             ergebnis = {}
+            if "--nachholen" in flags:  # nur wer laut Protokoll noch nichts bekommen hat
+                by_list = {stem: offen for stem, mails in by_list.items() if (offen := mailer.noch_offen(mails))}
+                was += " (nachgeholt)"
             for stem, mails in by_list.items():
                 folder = mailer.write_preview(mails, stem)
                 print(f"{stem}: {len(mails)} Mails → {folder}/vorschau.html")
@@ -170,11 +174,21 @@ def main() -> None:
                     print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
             if ergebnis and not test_to:
                 mailer.versand_bericht(was, ergebnis)  # Info an Marc, dass alles raus ist
+                from . import postfach  # beim Versand abgelehnte Adressen (550) gleich aus den Listen löschen
+                _, fehler = postfach.entfernen(mailer.permanent_failures(), postfach.listen_adressen([Path(a) for a in args]))
+                if fehler:
+                    print(f"Unzustellbare Adressen nicht gelöscht: {fehler}")
 
         if cmd == "mail-sonder":
             angebot = sonder.load()
             state = mailer.load_state()
             erledigt = state.setdefault("sonder_erledigt", [])
+            if angebot and "--nachholen" in flags:
+                if angebot[0] not in erledigt:
+                    print("Dieses Sonderangebot wurde noch nicht freigegeben – nichts nachzuholen.")
+                    return
+                send(build(None, feste=angebot[2]), was="Das Sonderangebot")  # schon freigegeben, nur Lücken füllen
+                return
             if angebot is None or angebot[0] in erledigt:
                 print("Kein offenes Sonderangebot.")
                 return
