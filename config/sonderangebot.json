@@ -1,0 +1,13 @@
+{
+  "id": "2026-10-29-s26-hp-jbl",
+  "anlass": "Sonderangebot: Samsung S26, HP Dock G6 und JBL Flip 7",
+  "artikel": [
+    {"artikel": "Samsung Galaxy S26 256 GB White", "ean": "8806097827801", "menge": 98, "preis": 585.00, "hersteller": "Samsung"},
+    {"artikel": "Samsung Galaxy S26 256 GB Cobalt Violet", "ean": "8806097827337", "menge": 57, "preis": 585.00, "hersteller": "Samsung"},
+    {"artikel": "Samsung Galaxy S26 256 GB Black", "ean": "8806097827481", "menge": 7, "preis": 585.00, "hersteller": "Samsung"},
+    {"artikel": "Samsung Galaxy S26 256 GB Sky Blue", "ean": "8806097827634", "menge": 3, "preis": 585.00, "hersteller": "Samsung"},
+    {"artikel": "Samsung Galaxy S26 Ultra 256 GB Sky Blue", "ean": "8806097826798", "menge": 18, "preis": 810.00, "hersteller": "Samsung"},
+    {"artikel": "HP USB-C Dock G6 9X3V1UT", "ean": "0198415314048", "menge": 600, "preis": 88.00, "hersteller": "HP"},
+    {"artikel": "JBL Flip 7 schwarz", "ean": "1200130019272", "menge": 1000, "preis": 65.00, "hersteller": "JBL"}
+  ]
+}
