@@ -81,6 +81,11 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Freigabe-Mail mit gemischtem Angebot aus dem ganzen Bestand, auch ältere Artikel
   (`mailer.mix_items`, je Kunde bis zur Hälfte seine Marken, Zufall fest per Seed im
   Antrag). Ohne neue Ware um 9:30 kommt automatisch ein Mix zur Freigabe.
+  **Wochen-Mix (Marc, 30.10.: „einmal die Woche, auch in Zukunft“):** mittwochs (`MIX_TAG`=2)
+  ist das Tagesangebot immer ein Mix aus dem ganzen Bestand. **WhatsApp/Teams:** jede
+  Freigabe-Mail enthält das Angebot zusätzlich als kopierfertigen Text (Deutsch, Englisch,
+  Englisch in $), `mailer.whatsapp_text`; Marc nutzt dafür WhatsApp-Business-Broadcast-Listen.
+  Kundenpreise aus den Preisspalten pro Kunde: vorerst nicht (Marc).
   **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht

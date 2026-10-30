@@ -48,6 +48,7 @@ def _save_catalog(products: list[dict]) -> None:
 
 
 _SPERRE = []
+MIX_TAG = int(os.getenv("MIX_TAG", "2"))  # Wochentag des Wochen-Mix (0 = Montag, 2 = Mittwoch)
 NACHHOL_VERSUCHE = 3  # abgebrochenen Versand so oft im Stundenlauf fortsetzen, dann aufgeben
 
 
@@ -208,7 +209,8 @@ def main() -> None:
             """Gemischtes Angebot (auch ältere Artikel) zur Freigabe schicken."""
             seed, gewaehlt = secrets.token_hex(4), set()
             by_list = build(None, mix=seed, gewaehlt=gewaehlt)
-            kennung = freigabe.new_request(state, gewaehlt, by_list, anlass=anlass,
+            wa = mailer.mix_items(mailer.Recipient("", "", "whatsapp", set()), current, seed)
+            kennung = freigabe.new_request(state, gewaehlt, by_list, anlass=anlass, whatsapp=wa,
                                            titel=f"Mix-Angebot (je Kunde bis {mailer.MAX_ARTIKEL} Artikel)")
             state["antrag"]["mix"] = seed; mailer.save_state(state)
             print(f"Freigabe-Mail {kennung} (Mix) an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
@@ -291,7 +293,7 @@ def main() -> None:
             if "--nur-antworten" in flags:
                 return  # Minuten-Lauf: nur Antworten prüfen, keine neuen Freigabe-Mails
             kennung = freigabe.new_request(state, {a.ean for a in artikel}, build(None, feste=artikel),
-                                           key="sonder_antrag", anlass=anlass, prefix="SO")
+                                           key="sonder_antrag", anlass=anlass, prefix="SO", whatsapp=artikel)
             state["sonder_antrag"]["id"] = sid; mailer.save_state(state)
             print(f"Sonder-Freigabe {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt.")
             return
@@ -382,6 +384,9 @@ def main() -> None:
         if state["zuletzt"] == date.today().isoformat() and "--force" not in flags:
             print("Heute wurde schon verschickt – morgen geht's weiter.")
             return
+        if date.today().weekday() == MIX_TAG and "--force" not in flags:  # Marc: einmal die Woche ein Mix
+            mix_request(state, "Wochen-Mix – neue und ältere Artikel aus dem ganzen Bestand")
+            return
         if not neu_eans:  # keine neue Ware: trotzdem ein Angebot, bunt gemischt aus dem Bestand
             mix_request(state, "Keine neue Ware seit der letzten Mail – hier ein Mix aus dem Bestand")
             return
@@ -391,7 +396,8 @@ def main() -> None:
             if "--vorschau" not in flags and not test_to:
                 mailer.mark_announced(state, neu_eans)
             return
-        kennung = freigabe.new_request(state, neu_eans, by_list)
+        wa = mailer.pick_items(mailer.Recipient("", "", "whatsapp", set()), current, neu_eans)  # ohne Markenvorlieben
+        kennung = freigabe.new_request(state, neu_eans, by_list, whatsapp=wa)
         print(f"Freigabe-Mail {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None

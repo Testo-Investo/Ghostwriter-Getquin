@@ -63,7 +63,7 @@ MIX = ("mix", "mischen", "durchmischen")  # neu mischen, auch ältere Artikel (n
 
 def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
                 key: str = "antrag", anlass: str = "neue Ware ist da", prefix: str = "GW",
-                titel: str | None = None) -> str:
+                titel: str | None = None, whatsapp: list | None = None) -> str:
     """Freigabe-Mail an Marc schicken und den Antrag im State unter `key` merken."""
     kennung = f"{prefix}-{date.today():%m%d}-{secrets.token_hex(2).upper()}"
     gesamt = sum(len(m) for m in mails_by_list.values())
@@ -78,22 +78,30 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
     kopf = (
         f"Moin Marc,\n\n{anlass}. Bereit zum Versand:\n\n{zeilen}\n  Gesamt: {gesamt} Mails\n\n"
         "Antworte einfach auf diese Mail:\n"
-        "  FREIGABE  → wird spätestens in einer Stunde verschickt\n"
+        "  FREIGABE  → geht 5 Minuten nach deiner Antwort raus (bis dahin geht noch STOPP)\n"
         "  STOPP     → wird verworfen\n"
         + ("  MIX       → neu gemischt, auch ältere Artikel – danach kommt eine neue Freigabe-Mail\n"
            if key == "antrag" else "") + "\n"
         "Etwas ändern? Nicht hier antworten, sondern Claude im Chat sagen. Danach kommt\n"
         "automatisch eine neue Freigabe-Mail mit der geänderten Fassung – diese hier gilt dann nicht mehr.\n\n"
         f"Ohne Antwort verfällt der Antrag nach {GUELTIG_TAGE} Tagen.\n"
-        "Im Anhang je Liste eine Beispiel-Mail. Darunter das erste Beispiel so, wie der Kunde es sieht.\n"
+        "Darunter: das Angebot als Text zum Kopieren für WhatsApp und Teams, danach das erste\n"
+        "Beispiel so, wie der Kunde die Mail sieht. Im Anhang je Liste eine Beispiel-Mail.\n"
     )
-    msg.set_content(kopf + "\n--- Beispiel ---\n\n" + beispiel.get_body(("plain",)).get_content())
+    texte = _whatsapp_texte(whatsapp) if whatsapp else []
+    wa_plain = "".join(f"\n--- {titel_wa} ---\n\n{text}\n" for titel_wa, text in texte)
+    msg.set_content(kopf + wa_plain + "\n--- Beispiel ---\n\n" + beispiel.get_body(("plain",)).get_content())
     # Beispiel im Original-Aussehen (Tabelle, Banner, Signatur) unter die Zusammenfassung setzen
     html_teil = beispiel.get_body(("html",))
     kopf_html = "<div style='font-family:Arial,sans-serif;font-size:14px'>" + html.escape(kopf).replace("\n", "<br>") + "</div>"
     trenner = (f"<hr><p style='font-family:Arial,sans-serif;color:#888;font-size:12px'>"
                f"Beispiel an {html.escape(beispiel['To'])} – Betreff: {html.escape(beispiel['Subject'])}</p>")
-    msg.add_alternative(kopf_html + trenner + html_teil.get_content(), subtype="html")
+    wa_html = "".join(
+        f"<p style='font-family:Arial,sans-serif;font-size:14px;margin:18px 0 4px'><b>{html.escape(titel_wa)}</b></p>"
+        f"<pre style='font-family:Arial,sans-serif;font-size:14px;white-space:pre-wrap;background:#f3f6f9;"
+        f"border:1px solid #d0d7de;padding:10px;margin:0'>{html.escape(text)}</pre>"
+        for titel_wa, text in texte)
+    msg.add_alternative(kopf_html + wa_html + trenner + html_teil.get_content(), subtype="html")
     for bild in beispiel.walk():
         if bild.get_content_maintype() == "image":
             msg.get_payload()[1].add_related(bild.get_payload(decode=True), "image", bild.get_content_subtype(),
@@ -109,6 +117,18 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
                        "erstellt": datetime.now().isoformat(timespec="minutes")}
     mailer.save_state(state)
     return kennung
+
+
+def _whatsapp_texte(items: list) -> list[tuple[str, str]]:
+    """Dasselbe Angebot als Text zum Kopieren in WhatsApp Business / Teams (Deutsch, Englisch, Englisch in $)."""
+    out = [("Zum Kopieren für WhatsApp / Teams – Deutsch", mailer.whatsapp_text(items, "de")),
+           ("Zum Kopieren für WhatsApp / Teams – Englisch", mailer.whatsapp_text(items, "en"))]
+    try:
+        out.append(("Zum Kopieren für WhatsApp / Teams – Englisch in US-Dollar (z. B. Dubai)",
+                    mailer.whatsapp_text(items, "en", "USD", mailer.usd_rate())))
+    except Exception:
+        pass  # ohne Tageskurs nur die Euro-Fassungen
+    return out
 
 
 def _first_line(msg: email.message.Message) -> str:

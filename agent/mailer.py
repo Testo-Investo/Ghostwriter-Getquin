@@ -216,6 +216,15 @@ def _menge(n: int, sprache: str) -> str:
     return f"{n}x"
 
 
+def whatsapp_text(items: list, sprache: str = "de", waehrung: str = "EUR", rate: float | None = None) -> str:
+    """Kopierfertiger Text für WhatsApp/Teams in Marcs Stil (*fett* = WhatsApp-Fettschrift)."""
+    t = TEXTE[sprache]
+    r = Recipient("", "", "", set(), sprache, waehrung)
+    bloecke = "\n\n".join(f"*{i.artikel}*\nEAN {i.ean}\n{_menge(i.verfuegbar, sprache)} · {_price(r, i.angebotspreis, rate)}"
+                           for i in items)
+    return f"{t['gruss_ohne']}\n\n{t['intro']}\n\n{bloecke}\n\n{t['outro']}"
+
+
 def build_message(r: Recipient, items: list[StockItem], absender: str, absender_name: str,
                   signatur: str = "", rate: float | None = None) -> EmailMessage:
     t = TEXTE[r.sprache]
