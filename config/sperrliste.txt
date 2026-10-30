@@ -1,0 +1,5 @@
+# Adressen, die nie wieder eine Mail bekommen (Marcs Anweisung im Chat).
+# Der Server löscht sie bei jedem Lauf aus den Google-Tabellen, falls sie dort (wieder) stehen.
+# 30.10.2026: lehnen jede Mail ab
+msales@mwtuae.com
+info@betterbuys.nl

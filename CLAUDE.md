@@ -123,6 +123,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Bericht), höchstens 3 Versuche, Bericht beim Fortsetzen nur, wenn etwas rausging.
   Versand-Sperre `/run/ghostwriter-versand.lock`: Timer und Befehl von Hand laufen nie
   gleichzeitig.
+  **Sperrliste `config/sperrliste.txt`** (im Repo): Marc sagt im Chat „nie mehr anschreiben“
+  → Adresse dort eintragen und pushen; nie angeschrieben, der Stundenlauf löscht sie aus
+  den Google-Tabellen (Info-Mail „auf deinen Wunsch gesperrt“). Seit 30.10.: msales@mwtuae.com,
+  info@betterbuys.nl (lehnten jede Mail ab). Der Drive-Connector kann keine Zeilen löschen.
   **Neue Kontakte am selben Tag:** ist das Sonderangebot heute schon raus, schickt jeder
   weitere `mail-sonder`-Lauf es automatisch an neu eingetragene Kontakte nach. Die
   mail-Befehle holen die Listen vorher selbst frisch aus Drive (auch von Hand gestartet).

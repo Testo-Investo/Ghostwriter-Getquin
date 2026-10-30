@@ -47,6 +47,7 @@ STOCK_CSV = Path(os.getenv("STOCK_CSV", "data/warenbestand.csv"))
 LOGO = Path("config/signatur_logo.png")  # Banner über der Signatur (optional)
 ABMELDUNGEN = Path("data/abmeldungen.txt")
 UNZUSTELLBAR = Path("data/unzustellbar.txt")  # Rückläufer, von postfach.py gepflegt
+SPERRLISTE = Path("config/sperrliste.txt")  # von Marc im Chat gesperrt – nie anschreiben
 OUTBOX = Path("data/outbox")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$")
 
@@ -102,6 +103,13 @@ class Recipient:
     waehrung: str = "EUR"
 
 
+def gesperrte(datei: Path) -> set[str]:
+    """Adressen aus einer Sperrdatei (eine pro Zeile, # = Kommentar)."""
+    if not datei.exists():
+        return set()
+    return {l.strip().lower() for l in datei.read_text().splitlines() if l.strip() and not l.startswith("#")}
+
+
 def load_recipients(path: str | Path, sprache: str | None = None, keine_sperre: bool = False) -> list[Recipient]:
     """Empfänger einer Liste; abgemeldete und unzustellbare Adressen fallen raus (außer keine_sperre)."""
     path = Path(path)
@@ -119,9 +127,8 @@ def load_recipients(path: str | Path, sprache: str | None = None, keine_sperre: 
     if i_mail is None:
         raise ValueError("Spalte „E-Mail“ fehlt in der Empfängerliste")
     blocked = set()
-    for sperre in () if keine_sperre else (ABMELDUNGEN, UNZUSTELLBAR):
-        if sperre.exists():
-            blocked |= {l.strip().lower() for l in sperre.read_text().splitlines()}
+    for sperre in () if keine_sperre else (ABMELDUNGEN, UNZUSTELLBAR, SPERRLISTE):
+        blocked |= gesperrte(sperre)
     out, seen = [], set()
     for r in rows[1:]:
         get = lambda i: r[i] if i is not None and i < len(r) else ""
