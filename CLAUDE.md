@@ -112,6 +112,15 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Adressen werden wie Rückläufer gelöscht. Nachholen: `mail-sonder --nachholen`
   (nur an Adressen ohne „gesendet“ mit gleichem Betreff im Protokoll; Betreff enthält
   das Datum → am selben Tag nachholen). Auswertung: `versand-status [Datum]`.
+  **Nie doppelt, abgebrochener Versand wird fortgesetzt (30.10.):** IONOS sperrte nach ~141
+  Mails mit „451 local error in processing“ (Versandlimit), der Bericht scheiterte, der Lauf
+  brach ab, ohne den Antrag abzuschließen – der nächste Lauf schickte alles erneut (IONOS
+  lehnte zum Glück alles ab). Jetzt: Antrag bekommt `versand_gestartet`; Folgeläufe am
+  selben Tag schicken nur an Adressen ohne „gesendet“ seit Versandbeginn und schließen
+  erst ab, wenn keine vorübergehenden Fehler mehr offen sind (Code-Stand egal). Nach 5
+  Ablehnungen (451) in Folge hält `send_all` an. Bericht-Fehler brechen nichts mehr ab.
+  Versand-Sperre `/run/ghostwriter-versand.lock`: Timer und Befehl von Hand laufen nie
+  gleichzeitig.
   **Neue Kontakte am selben Tag:** ist das Sonderangebot heute schon raus, schickt jeder
   weitere `mail-sonder`-Lauf es automatisch an neu eingetragene Kontakte nach. Die
   mail-Befehle holen die Listen vorher selbst frisch aus Drive (auch von Hand gestartet).

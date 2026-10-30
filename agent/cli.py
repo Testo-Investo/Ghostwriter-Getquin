@@ -47,6 +47,30 @@ def _save_catalog(products: list[dict]) -> None:
         print("Spalten:", ", ".join(products[0].keys()))
 
 
+_SPERRE = []
+
+
+def _versand_sperre() -> None:
+    """Wartet, bis kein anderer Versand mehr läuft (hält die Sperre bis Prozessende)."""
+    import fcntl
+    if _SPERRE:
+        return  # dieser Prozess hat sie schon
+    for ordner in (Path("/run"), Path("data")):
+        try:
+            f = (ordner / "ghostwriter-versand.lock").open("w")
+            break
+        except OSError:
+            continue
+    else:
+        return
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("Ein anderer Versand läuft gerade – warte, bis er fertig ist …")
+        fcntl.flock(f, fcntl.LOCK_EX)
+    _SPERRE.append(f)
+
+
 def main() -> None:
     load_dotenv()
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
@@ -140,6 +164,8 @@ def main() -> None:
         print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
         return
     if cmd in ("mail-preview", "mail-send", "mail-neu", "mail-sonder"):
+        if "--vorschau" not in sys.argv:
+            _versand_sperre()  # nie zwei Versände gleichzeitig (Timer + Befehl von Hand)
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
         flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe", "--nachholen", "--nur-antworten")}
@@ -193,7 +219,7 @@ def main() -> None:
                 was += " (nachgeholt)"
             if not by_list:
                 print("Alle haben es schon bekommen – nichts nachzuholen.")
-                return
+                return {}
             for stem, mails in by_list.items():
                 folder = mailer.write_preview(mails, stem)
                 print(f"{stem}: {len(mails)} Mails → {folder}/vorschau.html")
@@ -207,6 +233,17 @@ def main() -> None:
                 _, fehler = postfach.entfernen(mailer.permanent_failures(), postfach.listen_adressen([Path(a) for a in args]))
                 if fehler:
                     print(f"Unzustellbare Adressen nicht gelöscht: {fehler}")
+            return ergebnis
+
+        def ohne_bereits_gesendete(by_list, seit):
+            """Wer seit Versandbeginn schon „gesendet“ hat, bekommt nichts mehr (nie doppelt)."""
+            schon = mailer.gesendet_seit(seit)
+            return {stem: offen for stem, mails in by_list.items()
+                    if (offen := [m for m in mails if m[0].email not in schon])}
+
+        def vollstaendig(ergebnis) -> bool:
+            """Keine vorübergehenden Fehler mehr offen (dauerhafte 5xx zählen als erledigt)."""
+            return not any(not mailer.dauerhaft(f) for _, _, fl in ergebnis.values() for _, f in fl)
 
         if cmd == "mail-sonder":
             angebot = sonder.load()
@@ -265,6 +302,26 @@ def main() -> None:
 
         state = mailer.load_state()
         antrag = state.get("antrag")
+        if antrag and not antrag.get("versand_gestartet") and "--vorschau" not in flags:
+            # ältere Anträge: Versand lief schon an, wenn seit Antrag Mails rausgingen (Abbruch mittendrin)
+            seit = antrag["erstellt"].replace("T", " ")
+            if seit[:10] == date.today().isoformat() and mailer.gesendet_seit(seit):
+                antrag["versand_gestartet"] = seit; mailer.save_state(state)
+        if antrag and antrag.get("versand_gestartet"):
+            # Freigabe wurde schon ausgeführt, aber nicht alle Mails gingen raus → Rest nachholen
+            if antrag["versand_gestartet"][:10] != date.today().isoformat():
+                mailer.mark_announced(state, set(antrag["eans"]))
+                print(f"Freigabe {antrag['kennung']}: Rest vom Vortag wird nicht mehr nachgeschickt.")
+                return
+            by_list = ohne_bereits_gesendete(build(set(antrag["eans"]), freigabe.approved_stock(current),
+                                                   mix=antrag.get("mix")), antrag["versand_gestartet"])
+            ergebnis = send(by_list, was="Das Angebot (Rest nachgeholt)") if by_list else {}
+            if not by_list or vollstaendig(ergebnis):
+                mailer.mark_announced(state, set(antrag["eans"]))
+                print(f"Freigabe {antrag['kennung']}: jetzt vollständig verschickt.")
+            else:
+                print(f"Freigabe {antrag['kennung']}: noch nicht alle raus – nächster Lauf versucht den Rest.")
+            return
         if antrag and antrag.get("version") != freigabe.code_version():
             # Texte/Regeln wurden geändert, seit Marc die Mail gesehen hat → alte Freigabe gilt nicht
             state.pop("antrag"); mailer.save_state(state)
@@ -276,10 +333,16 @@ def main() -> None:
                 return
             if antwort == "ja":
                 eans = set(antrag["eans"])
-                send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))  # genau der angesehene Stand
-                if "--vorschau" not in flags and not test_to:
+                if "--vorschau" in flags or test_to:
+                    send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))
+                    return
+                antrag["versand_gestartet"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); mailer.save_state(state)
+                ergebnis = send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))  # angesehener Stand
+                if vollstaendig(ergebnis):
                     mailer.mark_announced(state, eans)
-                print(f"Freigabe {antrag['kennung']} erhalten – verschickt.")
+                    print(f"Freigabe {antrag['kennung']} erhalten – verschickt.")
+                else:
+                    print(f"Freigabe {antrag['kennung']} erhalten – nicht alle raus, nächster Lauf holt den Rest nach.")
             elif antwort == "mix":
                 state.pop("antrag"); mailer.save_state(state)
                 print(f"Freigabe {antrag['kennung']}: Marc möchte einen Mix.")

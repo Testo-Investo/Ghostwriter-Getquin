@@ -344,6 +344,7 @@ def smtp_test(to: str) -> None:
         smtp.send_message(msg)
 
 
+ABBRUCH_NACH = 5  # so viele vorübergehende Ablehnungen (451) hintereinander → IONOS-Limit, Versand anhalten
 SESSION_MAX = 15  # IONOS nimmt pro Verbindung nur 20 Mails an („Mails per session limit exceeded“)
 _DAUERHAFT = re.compile(r"\(5\d\d,")  # 5xx = Adresse/Domain gibt es nicht
 
@@ -373,7 +374,7 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
     Nach SESSION_MAX Mails wird neu verbunden; wird eine Mail wegen des Limits pro
     Verbindung abgelehnt, wird neu verbunden und noch einmal versucht.
     Gibt (Protokoll, Anzahl gesendet, [(adresse, fehler)]) zurück."""
-    ok, fehler = 0, []
+    ok, fehler, gesperrt_in_folge = 0, [], 0
     log = OUTBOX / f"versand_{date.today().isoformat()}.csv"
     log.parent.mkdir(parents=True, exist_ok=True)
     new_log = not log.exists()
@@ -384,6 +385,11 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
             if new_log:
                 w.writerow(["zeit", "firma", "email", "betreff", "artikel", "status"])
             for r, msg, n in mails:
+                if gesperrt_in_folge >= ABBRUCH_NACH:
+                    # IONOS lehnt alles ab (Versandlimit erreicht) – Rest nicht verbrennen, der nächste
+                    # Lauf schickt ihn nach (nur an Adressen ohne „gesendet“ im Protokoll)
+                    fehler.append((r.email, "nicht versucht – IONOS-Versandlimit, wird nachgeholt"))
+                    continue
                 if test_to:
                     del msg["To"]
                     msg["To"] = test_to
@@ -403,12 +409,25 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
                             break  # nur vorübergehende Fehler (Limit, Verbindung weg) lohnen einen 2. Versuch
                 if not status.startswith(("gesendet", "test")):
                     fehler.append((r.email, status[8:168]))
+                    gesperrt_in_folge = gesperrt_in_folge + 1 if re.search(r"\(4[25]\d", status) else 0
+                else:
+                    gesperrt_in_folge = 0
                 w.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), r.firma, r.email, msg["Subject"], n, status])
                 f.flush()
                 time.sleep(PAUSE_SEKUNDEN)
     finally:
         _trennen(smtp)
     return log, ok, fehler
+
+
+def gesendet_seit(seit: str) -> set[str]:
+    """Adressen mit Status „gesendet“ im Protokoll ab Zeitpunkt seit („JJJJ-MM-TT HH:MM“)."""
+    out = set()
+    for log in OUTBOX.glob("versand_*.csv"):
+        for row in csv.DictReader(log.open(newline="")):
+            if row["status"] == "gesendet" and row["zeit"] >= seit:
+                out.add(row["email"])
+    return out
 
 
 def heute_verschickt(mails: list[Mail]) -> bool:
@@ -453,8 +472,16 @@ def versand_bericht(was: str, ergebnis: dict[str, tuple[int, int, list]]) -> Non
     fehler = [f"  {a}: {f}" for _, _, fl in ergebnis.values() for a, f in fl]
     text = f"Moin Marc,\n\n{was} ist fertig verschickt ({time.strftime('%d.%m.%Y %H:%M')} Uhr):\n\n{zeilen}\n  Gesamt: {gesendet} von {gesamt}\n"
     if fehler:
-        text += "\nNicht angenommen vom Mailserver:\n" + "\n".join(fehler) + "\n"
+        text += ("\nNicht angenommen vom Mailserver (vorübergehende Fehler holt der Server beim nächsten\n"
+                 "Lauf automatisch nach, nur an wer es noch nicht hat):\n" + "\n".join(fehler) + "\n")
     text += ("\nAbwesenheitsnotizen sortiert der Server in den Ordner „Abwesenheitsnotizen“.\n"
              "Unzustellbare Adressen löscht er aus den Listen – dazu kommt eine eigene Info-Mail.\n")
     msg.set_content(text)
-    send_raw(msg)
+    for versuch in range(2):
+        try:
+            send_raw(msg)
+            return
+        except (smtplib.SMTPException, OSError) as e:
+            print(f"Versand-Bericht nicht verschickt ({e})" + (" – neuer Versuch in 60 s" if not versuch else ""))
+            if not versuch:
+                time.sleep(60)
