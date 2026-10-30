@@ -85,7 +85,11 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht
   der Versand raus; „STOPP“ verwirft, ohne Antwort verfällt der Antrag nach 3 Tagen
-  (`agent/freigabe.py`). **Marc will Änderungen nur hier im Chat machen, nie per
+  (`agent/freigabe.py`). **Versand genau 5 Minuten nach Marcs FREIGABE-Antwort**
+  (Zeit aus dem Date-Kopf seiner Mail; bis dahin kann er noch STOPP schicken):
+  Minuten-Lauf `ghostwriter-freigabe.timer` (Mo–Fr 8–17 Uhr, `deploy/run_freigabe.sh`,
+  `--nur-antworten`), gegenseitig gesperrt mit dem Stundenlauf (flock /run/ghostwriter.lock).
+  **Marc will Änderungen nur hier im Chat machen, nie per
   Mail-Antwort** (Tippfehler-Risiko); die Antwort bleibt nur FREIGABE/STOPP/MIX. Eine
   Freigabe gilt nur für genau den Code-Stand (git HEAD) und Bestand, den Marc gesehen
   hat; nach jedem Push wird ein offener Antrag ungültig und neu verschickt. Der Server

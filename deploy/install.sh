@@ -46,7 +46,8 @@ Type=oneshot
 WorkingDirectory=$APP
 ExecStart=$APP/deploy/run_hourly.sh
 UNIT
-cp "$APP/deploy/ghostwriter.timer" /etc/systemd/system/ghostwriter.timer  # Zeitplan steht im Repo
+cp "$APP/deploy/ghostwriter.timer" "$APP/deploy/ghostwriter-freigabe.service" \
+   "$APP/deploy/ghostwriter-freigabe.timer" /etc/systemd/system/  # Zeitpläne stehen im Repo
 timedatectl set-timezone Europe/Berlin
 systemctl daemon-reload
 echo

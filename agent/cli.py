@@ -12,6 +12,7 @@
   mail-sonder <liste.xlsx> [weitere Listen …]
       Sonderangebot aus config/sonderangebot.json: Freigabe-Mail, nach FREIGABE an alle
       --nachholen: freigegebenes Sonderangebot an alle, die es laut Protokoll noch nicht bekommen haben
+  --nur-antworten (mail-neu, mail-sonder): nur Antworten auf offene Freigaben bearbeiten (Minuten-Lauf)
   postfach <liste.xlsx> [weitere Listen …]
       Abwesenheitsnotizen wegsortieren, Rückläufer-Adressen aus den Listen löschen
   versand-status [JJJJ-MM-TT]   Protokoll eines Tages auswerten (Betreff × Status)
@@ -139,12 +140,9 @@ def main() -> None:
         print(f"{len(rows)} Kundenprofile (aktiv seit {since}) → data/kunden.json")
         return
     if cmd in ("mail-preview", "mail-send", "mail-neu", "mail-sonder"):
-        if os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") and "--vorschau" not in sys.argv:
-            from .gsheet import fetch_mailing_lists
-            fetch_mailing_lists()  # immer mit dem neuesten Stand der Listen arbeiten, auch beim Befehl von Hand
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
-        flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe", "--nachholen")}
+        flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe", "--nachholen", "--nur-antworten")}
         test_to = None
         if "--test" in args:
             test_to = args[args.index("--test") + 1]
@@ -154,7 +152,13 @@ def main() -> None:
         name = os.getenv("MAIL_NAME", "Marc Knieb")
         signatur = mailer.SIGNATUR.read_text() if mailer.SIGNATUR.exists() else ""
 
+        listen_frisch = []
+
         def build(neu_eans, stock=None, feste=None, mix=None, gewaehlt=None):
+            if not listen_frisch and os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") and "--vorschau" not in flags:
+                from .gsheet import fetch_mailing_lists
+                fetch_mailing_lists()  # immer der neueste Stand der Listen, auch beim Befehl von Hand
+                listen_frisch.append(True)
             stock = current if stock is None else stock
             seen: set[str] = set()  # wer in mehreren Listen steht, bekommt nur eine Mail
             out = {}
@@ -164,6 +168,14 @@ def main() -> None:
                 out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste,
                                                          mix, gewaehlt)
             return out
+
+        def faellig(antrag, zeit) -> bool:
+            """FREIGABE erst 5 Minuten nach Marcs Antwort ausführen (Zeit zum Zurückziehen per STOPP)."""
+            ab = freigabe.versand_ab(zeit)
+            if datetime.now() < ab:
+                print(f"Freigabe {antrag['kennung']} erhalten – Versand um {ab:%H:%M} Uhr.")
+                return False
+            return True
 
         def mix_request(state, anlass):
             """Gemischtes Angebot (auch ältere Artikel) zur Freigabe schicken."""
@@ -206,7 +218,7 @@ def main() -> None:
                     return
                 send(build(None, feste=angebot[2]), was="Das Sonderangebot")  # schon freigegeben, nur Lücken füllen
                 return
-            if angebot and angebot[0] in erledigt:
+            if angebot and angebot[0] in erledigt and "--nur-antworten" not in flags:
                 # Heute freigegeben und verschickt? Dann bekommen neu eingetragene Kontakte es noch nach.
                 by_list = build(None, feste=angebot[2])
                 if mailer.heute_verschickt([m for mails in by_list.values() for m in mails]):
@@ -223,7 +235,9 @@ def main() -> None:
                 print(f"Sonder-Freigabe {antrag['kennung']} ist veraltet – neue Freigabe-Mail folgt.")
                 antrag = None
             if antrag:
-                antwort = freigabe.check_answer(antrag["kennung"])
+                antwort, zeit = freigabe.check_answer_at(antrag["kennung"])
+                if antwort == "ja" and not faellig(antrag, zeit):
+                    return
                 if antwort == "ja":
                     send(build(None, feste=artikel), was="Das Sonderangebot")
                 if antwort in ("ja", "nein"):
@@ -235,6 +249,8 @@ def main() -> None:
                 else:
                     print(f"Warte auf Sonder-Freigabe {antrag['kennung']}.")
                 return
+            if "--nur-antworten" in flags:
+                return  # Minuten-Lauf: nur Antworten prüfen, keine neuen Freigabe-Mails
             kennung = freigabe.new_request(state, {a.ean for a in artikel}, build(None, feste=artikel),
                                            key="sonder_antrag", anlass=anlass, prefix="SO")
             state["sonder_antrag"]["id"] = sid; mailer.save_state(state)
@@ -255,7 +271,9 @@ def main() -> None:
             print(f"Freigabe {antrag['kennung']} ist veraltet (Änderungen seitdem) – neue Freigabe-Mail folgt.")
             antrag = None
         if antrag:
-            antwort = freigabe.check_answer(antrag["kennung"])
+            antwort, zeit = freigabe.check_answer_at(antrag["kennung"])
+            if antwort == "ja" and not faellig(antrag, zeit):
+                return
             if antwort == "ja":
                 eans = set(antrag["eans"])
                 send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))  # genau der angesehene Stand
@@ -276,6 +294,8 @@ def main() -> None:
                 print(f"Warte auf Freigabe {antrag['kennung']}.")
             return
 
+        if "--nur-antworten" in flags:
+            return  # Minuten-Lauf: neue Freigabe-Mails nur im Stundenlauf
         um = int(os.getenv("ANGEBOT_UM", "9"))  # Marc: Freigabe-Mail im 9-Uhr-Lauf (9:30), Versand nach FREIGABE ab 10:30
         if datetime.now().hour != um and "--force" not in flags:
             print(f"Neues Angebot nur im Lauf zwischen {um} und {um + 1} Uhr – jetzt nichts zu tun.")

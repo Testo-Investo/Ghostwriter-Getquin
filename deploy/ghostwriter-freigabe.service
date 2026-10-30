@@ -1,0 +1,8 @@
+[Unit]
+Description=Ghostwriter: Antworten auf Freigabe-Mails prüfen (jede Minute)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/ghostwriter
+ExecStart=/opt/ghostwriter/deploy/run_freigabe.sh

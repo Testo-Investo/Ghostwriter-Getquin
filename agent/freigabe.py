@@ -14,6 +14,7 @@ Die Antwort wird per IMAP aus Marcs IONOS-Postfach gelesen (gleiche Zugangsdaten
 """
 
 import email
+import email.utils
 import html
 import imaplib
 import os
@@ -123,8 +124,16 @@ def _first_line(msg: email.message.Message) -> str:
     return ""
 
 
+VERZOEGERUNG = timedelta(minutes=5)  # Marc: Versand genau 5 Minuten nach seiner FREIGABE
+
+
 def check_answer(kennung: str) -> str | None:
     """'ja', 'nein', 'mix' oder None (noch keine Antwort)."""
+    return check_answer_at(kennung)[0]
+
+
+def check_answer_at(kennung: str) -> tuple[str | None, datetime | None]:
+    """Wie check_answer, dazu der Zeitpunkt der Antwort (Date-Kopf der Mail, mit Zeitzone)."""
     with imaplib.IMAP4_SSL(IMAP_HOST) as imap:
         imap.login(os.environ["IONOS_SMTP_USER"], os.environ["IONOS_SMTP_PASSWORD"])
         imap.select("INBOX", readonly=True)
@@ -136,13 +145,21 @@ def check_answer(kennung: str) -> str | None:
             if subject.startswith("Freigabe nötig"):
                 continue  # die Anfrage selbst, keine Antwort
             line = _first_line(msg)
-            if any(line.startswith(w) for w in NEIN):
-                return "nein"
-            if any(line.startswith(w) for w in MIX):
-                return "mix"
-            if any(line.startswith(w) for w in JA):
-                return "ja"
-    return None
+            try:
+                zeit = email.utils.parsedate_to_datetime(msg["Date"])
+            except (TypeError, ValueError):
+                zeit = None
+            for antwort, woerter in (("nein", NEIN), ("mix", MIX), ("ja", JA)):
+                if any(line.startswith(w) for w in woerter):
+                    return antwort, zeit
+    return None, None
+
+
+def versand_ab(zeit: datetime | None) -> datetime:
+    """Frühester Versand nach einer FREIGABE (lokale Zeit)."""
+    if zeit is None:
+        return datetime.now()
+    return (zeit + VERZOEGERUNG).astimezone().replace(tzinfo=None)
 
 
 def expired(antrag: dict) -> bool:

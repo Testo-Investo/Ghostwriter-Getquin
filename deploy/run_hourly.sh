@@ -7,12 +7,21 @@ set -euo pipefail
 main() {
   cd /opt/ghostwriter
   local PY=.venv/bin/python
+  exec 9>/run/ghostwriter.lock
+  flock 9                 # nicht gleichzeitig mit dem Minuten-Lauf (sonst doppelter Versand)
   git pull -q --ff-only   # Änderungen aus dem Chat automatisch übernehmen
-  # Zeitplan aus dem Repo übernehmen, falls er sich geändert hat (gilt ab dem nächsten Lauf)
-  if ! cmp -s deploy/ghostwriter.timer /etc/systemd/system/ghostwriter.timer; then
-    cp deploy/ghostwriter.timer /etc/systemd/system/ghostwriter.timer
+  # Zeitpläne aus dem Repo übernehmen, falls sie sich geändert haben
+  local unit neu=""
+  for unit in ghostwriter.timer ghostwriter-freigabe.service ghostwriter-freigabe.timer; do
+    if ! cmp -s "deploy/$unit" "/etc/systemd/system/$unit"; then
+      cp "deploy/$unit" "/etc/systemd/system/$unit"
+      neu=1
+    fi
+  done
+  if [ -n "$neu" ]; then
     systemctl daemon-reload
-    echo "Zeitplan aktualisiert: $(grep OnCalendar deploy/ghostwriter.timer)"
+    systemctl enable --now ghostwriter-freigabe.timer
+    echo "Zeitpläne aktualisiert"
   fi
   $PY -m agent.cli fetch-stock
   $PY -m agent.cli fetch-lists

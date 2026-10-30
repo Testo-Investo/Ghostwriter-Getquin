@@ -1,0 +1,10 @@
+[Unit]
+Description=Ghostwriter Freigabe-Antworten jede Minute (Mo–Fr 8–17 Uhr)
+
+[Timer]
+# Marc: Versand genau 5 Minuten nach seiner FREIGABE → jede Minute nachsehen
+OnCalendar=Mon..Fri 08..16:*:00
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
