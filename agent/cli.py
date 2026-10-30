@@ -182,7 +182,7 @@ def main() -> None:
 
         listen_frisch = []
 
-        def build(neu_eans, stock=None, feste=None, mix=None, gewaehlt=None):
+        def build(neu_eans, stock=None, feste=None, mix=None, gewaehlt=None, pflicht=None):
             if not listen_frisch and os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") and "--vorschau" not in flags:
                 from .gsheet import fetch_mailing_lists
                 fetch_mailing_lists()  # immer der neueste Stand der Listen, auch beim Befehl von Hand
@@ -194,7 +194,7 @@ def main() -> None:
                 recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
                 seen |= {r.email for r in recipients}
                 out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste,
-                                                         mix, gewaehlt)
+                                                         mix, gewaehlt, pflicht)
             return out
 
         def faellig(antrag, zeit) -> bool:
@@ -208,11 +208,13 @@ def main() -> None:
         def mix_request(state, anlass):
             """Gemischtes Angebot (auch ältere Artikel) zur Freigabe schicken."""
             seed, gewaehlt = secrets.token_hex(4), set()
-            by_list = build(None, mix=seed, gewaehlt=gewaehlt)
-            wa = mailer.mix_items(mailer.Recipient("", "", "whatsapp", set()), current, seed)
+            pflicht_roh = sonder.pflicht_fuer(date.today().isoformat())
+            pflicht = sonder.als_items(pflicht_roh)
+            by_list = build(None, mix=seed, gewaehlt=gewaehlt, pflicht=pflicht)
+            wa = mailer.mit_pflicht(mailer.mix_items(mailer.Recipient("", "", "whatsapp", set()), current, seed), pflicht)
             kennung = freigabe.new_request(state, gewaehlt, by_list, anlass=anlass, whatsapp=wa,
                                            titel=f"Mix-Angebot (je Kunde bis {mailer.MAX_ARTIKEL} Artikel)")
-            state["antrag"]["mix"] = seed; mailer.save_state(state)
+            state["antrag"]["mix"] = seed; state["antrag"]["pflicht"] = pflicht_roh; mailer.save_state(state)
             print(f"Freigabe-Mail {kennung} (Mix) an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
 
         def send(by_list, was="Das Angebot", bericht_nur_bei_erfolg=False):
@@ -331,7 +333,7 @@ def main() -> None:
             versuche = antrag.get("nachhol_versuche", 0)
             antrag["nachhol_versuche"] = versuche + 1; mailer.save_state(state)
             by_list = ohne_bereits_gesendete(build(set(antrag["eans"]), freigabe.approved_stock(current),
-                                                   mix=antrag.get("mix")), antrag["versand_gestartet"])
+                                                   mix=antrag.get("mix"), pflicht=sonder.als_items(antrag.get("pflicht", []))), antrag["versand_gestartet"])
             ergebnis = send(by_list, was="Das Angebot (Rest nachgeholt)", bericht_nur_bei_erfolg=True) if by_list else {}
             if not by_list or vollstaendig(ergebnis):
                 mailer.mark_announced(state, set(antrag["eans"]))
@@ -351,10 +353,12 @@ def main() -> None:
             if antwort == "ja":
                 eans = set(antrag["eans"])
                 if "--vorschau" in flags or test_to:
-                    send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))
+                    send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix"),
+                               pflicht=sonder.als_items(antrag.get("pflicht", []))))
                     return
                 antrag["versand_gestartet"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); mailer.save_state(state)
-                ergebnis = send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix")))  # angesehener Stand
+                ergebnis = send(build(eans, freigabe.approved_stock(current), mix=antrag.get("mix"),
+                               pflicht=sonder.als_items(antrag.get("pflicht", []))))  # angesehener Stand
                 if vollstaendig(ergebnis):
                     mailer.mark_announced(state, eans)
                     print(f"Freigabe {antrag['kennung']} erhalten – verschickt.")
@@ -390,14 +394,17 @@ def main() -> None:
         if not neu_eans:  # keine neue Ware: trotzdem ein Angebot, bunt gemischt aus dem Bestand
             mix_request(state, "Keine neue Ware seit der letzten Mail – hier ein Mix aus dem Bestand")
             return
-        by_list = build(neu_eans)
+        pflicht_roh = sonder.pflicht_fuer(date.today().isoformat())  # Marc: „heute auf jeden Fall X rein“
+        pflicht = sonder.als_items(pflicht_roh)
+        by_list = build(neu_eans, pflicht=pflicht)
         if "--ohne-freigabe" in flags:
             send(by_list)
             if "--vorschau" not in flags and not test_to:
                 mailer.mark_announced(state, neu_eans)
             return
-        wa = mailer.pick_items(mailer.Recipient("", "", "whatsapp", set()), current, neu_eans)  # ohne Markenvorlieben
-        kennung = freigabe.new_request(state, neu_eans, by_list, whatsapp=wa)
+        wa = mailer.mit_pflicht(mailer.pick_items(mailer.Recipient("", "", "whatsapp", set()), current, neu_eans), pflicht)
+        kennung = freigabe.new_request(state, neu_eans | {p.ean for p in pflicht}, by_list, whatsapp=wa)
+        state["antrag"]["pflicht"] = pflicht_roh; mailer.save_state(state)
         print(f"Freigabe-Mail {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
         return
     sheet = os.getenv("PRODUCT_EXCEL_SHEET") or None

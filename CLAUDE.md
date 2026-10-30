@@ -86,6 +86,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Freigabe-Mail enthält das Angebot zusätzlich als kopierfertigen Text (Deutsch, Englisch,
   Englisch in $), `mailer.whatsapp_text`; Marc nutzt dafür WhatsApp-Business-Broadcast-Listen.
   Kundenpreise aus den Preisspalten pro Kunde: vorerst nicht (Marc).
+  **Pflichtartikel `config/pflichtartikel.json`:** Marc sagt „am Montag auf jeden Fall X rein,
+  Menge/Preis“ → Eintrag mit `datum` (JJJJ-MM-TT), steht im Tagesangebot an dem Tag bei jedem
+  Kunden ganz oben (auch im Mix und in den WhatsApp-Texten), Menge/Preis wie von Marc genannt;
+  wird im Antrag gespeichert. 02.11.2026: Zebra ZD411d, 200 Stück, 230 €.
   **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht

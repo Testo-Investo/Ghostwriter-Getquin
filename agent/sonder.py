@@ -37,3 +37,24 @@ def load() -> tuple[str, str, list[SonderItem]] | None:
         for a in data["artikel"]
     ]
     return data["id"], data.get("anlass", "Sonderangebot"), items
+
+
+# Pflichtartikel: Marc sagt im Chat „am Montag auf jeden Fall X rein“ – steht dann im
+# Tagesangebot (mail-neu) an diesem Datum bei jedem Kunden ganz oben, mit Marcs Menge/Preis.
+PFLICHT = Path("config/pflichtartikel.json")
+
+
+def _item(a: dict) -> SonderItem:
+    return SonderItem(a["artikel"], str(a.get("ean", "")), int(a["menge"]), float(a["preis"]),
+                      a.get("hersteller") or a["artikel"].split()[0])
+
+
+def pflicht_fuer(tag: str) -> list[dict]:
+    """Pflichtartikel für ein Datum (JJJJ-MM-TT) als einfache Dicts (so kommen sie in den Antrag)."""
+    if not PFLICHT.exists():
+        return []
+    return [a for a in json.loads(PFLICHT.read_text()).get("artikel", []) if a.get("datum") == tag]
+
+
+def als_items(eintraege: list[dict]) -> list[SonderItem]:
+    return [_item(a) for a in eintraege]

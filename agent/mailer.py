@@ -280,10 +280,16 @@ def _signature_html(sig: str) -> str:
     return "<br>".join(out)
 
 
+def mit_pflicht(chosen: list, pflicht: list) -> list:
+    eans = {p.ean for p in pflicht}
+    return (list(pflicht) + [i for i in chosen if i.ean not in eans])[:MAX_ARTIKEL]
+
+
 def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str,
               neu_eans: set[str] | None = None, signatur: str = "", feste_artikel: list | None = None,
-              mix: str | None = None, gewaehlt: set[str] | None = None) -> list[Mail]:
+              mix: str | None = None, gewaehlt: set[str] | None = None, pflicht: list | None = None) -> list[Mail]:
     """feste_artikel: Sonderangebot – alle bekommen genau diese Artikel, ohne Auswahl.
+    pflicht: Pflichtartikel des Tages – bei jedem ganz oben (höchstens MAX_ARTIKEL insgesamt).
     mix: Zufalls-Schlüssel für ein gemischtes Angebot (siehe mix_items).
     gewaehlt: wird mit den EANs aller verwendeten Artikel gefüllt."""
     rate = usd_rate() if any(r.waehrung == "USD" for r in recipients) else None
@@ -295,6 +301,8 @@ def build_all(recipients: list[Recipient], items: list[StockItem], absender: str
             chosen = mix_items(r, items, mix)
         else:
             chosen = pick_items(r, items, neu_eans)
+        if pflicht and feste_artikel is None:
+            chosen = mit_pflicht(chosen, pflicht)
         if gewaehlt is not None:
             gewaehlt |= {i.ean for i in chosen}
         if chosen:
