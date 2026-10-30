@@ -48,6 +48,7 @@ def _save_catalog(products: list[dict]) -> None:
 
 
 _SPERRE = []
+NACHHOL_VERSUCHE = 3  # abgebrochenen Versand so oft im Stundenlauf fortsetzen, dann aufgeben
 
 
 def _versand_sperre() -> None:
@@ -212,7 +213,7 @@ def main() -> None:
             state["antrag"]["mix"] = seed; mailer.save_state(state)
             print(f"Freigabe-Mail {kennung} (Mix) an {os.getenv('FREIGABE_AN', absender)} geschickt – warte auf Antwort.")
 
-        def send(by_list, was="Das Angebot"):
+        def send(by_list, was="Das Angebot", bericht_nur_bei_erfolg=False):
             ergebnis = {}
             if "--nachholen" in flags:  # nur wer laut Protokoll noch nichts bekommen hat
                 by_list = {stem: offen for stem, mails in by_list.items() if (offen := mailer.noch_offen(mails))}
@@ -228,7 +229,8 @@ def main() -> None:
                     ergebnis[stem] = (ok, len(mails), fehler)
                     print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
             if ergebnis and not test_to:
-                mailer.versand_bericht(was, ergebnis)  # Info an Marc, dass alles raus ist
+                if not (bericht_nur_bei_erfolg and not any(e[0] for e in ergebnis.values())):
+                    mailer.versand_bericht(was, ergebnis)  # Info an Marc, dass alles raus ist
                 from . import postfach  # beim Versand abgelehnte Adressen (550) gleich aus den Listen löschen
                 _, fehler = postfach.entfernen(mailer.permanent_failures(), postfach.listen_adressen([Path(a) for a in args]))
                 if fehler:
@@ -308,14 +310,27 @@ def main() -> None:
             if seit[:10] == date.today().isoformat() and mailer.gesendet_seit(seit):
                 antrag["versand_gestartet"] = seit; mailer.save_state(state)
         if antrag and antrag.get("versand_gestartet"):
-            # Freigabe wurde schon ausgeführt, aber nicht alle Mails gingen raus → Rest nachholen
-            if antrag["versand_gestartet"][:10] != date.today().isoformat():
-                mailer.mark_announced(state, set(antrag["eans"]))
-                print(f"Freigabe {antrag['kennung']}: Rest vom Vortag wird nicht mehr nachgeschickt.")
+            # Freigabe wurde schon ausgeführt, aber nicht alle Mails gingen raus → Rest nachholen,
+            # nur im Stundenlauf (nicht jede Minute) und höchstens NACHHOL_VERSUCHE Mal
+            if "--nur-antworten" in flags:
                 return
+            versuche = antrag.get("nachhol_versuche", 0)
+            if antrag["versand_gestartet"][:10] != date.today().isoformat():
+                # Rest vom Vortag: aufgeben, heutiges Angebot aber nicht blockieren
+                state["angekuendigt"] = sorted(set(state["angekuendigt"]) | set(antrag["eans"]))
+                state.pop("antrag"); mailer.save_state(state)
+                print(f"Freigabe {antrag['kennung']}: Rest vom Vortag aufgegeben.")
+                antrag = None
+            elif versuche >= NACHHOL_VERSUCHE:
+                mailer.mark_announced(state, set(antrag["eans"]))
+                print(f"Freigabe {antrag['kennung']}: Rest nach {versuche} Versuchen aufgegeben.")
+                return
+        if antrag and antrag.get("versand_gestartet"):
+            versuche = antrag.get("nachhol_versuche", 0)
+            antrag["nachhol_versuche"] = versuche + 1; mailer.save_state(state)
             by_list = ohne_bereits_gesendete(build(set(antrag["eans"]), freigabe.approved_stock(current),
                                                    mix=antrag.get("mix")), antrag["versand_gestartet"])
-            ergebnis = send(by_list, was="Das Angebot (Rest nachgeholt)") if by_list else {}
+            ergebnis = send(by_list, was="Das Angebot (Rest nachgeholt)", bericht_nur_bei_erfolg=True) if by_list else {}
             if not by_list or vollstaendig(ergebnis):
                 mailer.mark_announced(state, set(antrag["eans"]))
                 print(f"Freigabe {antrag['kennung']}: jetzt vollständig verschickt.")

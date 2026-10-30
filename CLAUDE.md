@@ -119,6 +119,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   selben Tag schicken nur an Adressen ohne „gesendet“ seit Versandbeginn und schließen
   erst ab, wenn keine vorübergehenden Fehler mehr offen sind (Code-Stand egal). Nach 5
   Ablehnungen (451) in Folge hält `send_all` an. Bericht-Fehler brechen nichts mehr ab.
+  Fortsetzen nur im Stundenlauf (nie im Minuten-Lauf – sonst kam am 30.10. jede Minute ein
+  Bericht), höchstens 3 Versuche, Bericht beim Fortsetzen nur, wenn etwas rausging.
   Versand-Sperre `/run/ghostwriter-versand.lock`: Timer und Befehl von Hand laufen nie
   gleichzeitig.
   **Neue Kontakte am selben Tag:** ist das Sonderangebot heute schon raus, schickt jeder
