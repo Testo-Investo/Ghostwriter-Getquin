@@ -63,7 +63,7 @@ MIX = ("mix", "mischen", "durchmischen")  # neu mischen, auch ältere Artikel (n
 
 def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
                 key: str = "antrag", anlass: str = "neue Ware ist da", prefix: str = "GW",
-                titel: str | None = None, whatsapp: list | None = None) -> str:
+                titel: str | None = None, whatsapp: list | None = None, texte: dict | None = None) -> str:
     """Freigabe-Mail an Marc schicken und den Antrag im State unter `key` merken."""
     kennung = f"{prefix}-{date.today():%m%d}-{secrets.token_hex(2).upper()}"
     gesamt = sum(len(m) for m in mails_by_list.values())
@@ -88,8 +88,8 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
         "Darunter: das Angebot als Text zum Kopieren für WhatsApp und Teams, danach das erste\n"
         "Beispiel so, wie der Kunde die Mail sieht. Im Anhang je Liste eine Beispiel-Mail.\n"
     )
-    texte = _whatsapp_texte(whatsapp) if whatsapp else []
-    wa_plain = "".join(f"\n--- {titel_wa} ---\n\n{text}\n" for titel_wa, text in texte)
+    wa_texte = _whatsapp_texte(whatsapp, texte) if whatsapp else []
+    wa_plain = "".join(f"\n--- {titel_wa} ---\n\n{text}\n" for titel_wa, text in wa_texte)
     msg.set_content(kopf + wa_plain + "\n--- Beispiel ---\n\n" + beispiel.get_body(("plain",)).get_content())
     # Beispiel im Original-Aussehen (Tabelle, Banner, Signatur) unter die Zusammenfassung setzen
     html_teil = beispiel.get_body(("html",))
@@ -100,7 +100,7 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
         f"<p style='font-family:Arial,sans-serif;font-size:14px;margin:18px 0 4px'><b>{html.escape(titel_wa)}</b></p>"
         f"<pre style='font-family:Arial,sans-serif;font-size:14px;white-space:pre-wrap;background:#f3f6f9;"
         f"border:1px solid #d0d7de;padding:10px;margin:0'>{html.escape(text)}</pre>"
-        for titel_wa, text in texte)
+        for titel_wa, text in wa_texte)
     msg.add_alternative(kopf_html + wa_html + trenner + html_teil.get_content(), subtype="html")
     for bild in beispiel.walk():
         if bild.get_content_maintype() == "image":
@@ -119,13 +119,13 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
     return kennung
 
 
-def _whatsapp_texte(items: list) -> list[tuple[str, str]]:
+def _whatsapp_texte(items: list, texte: dict | None = None) -> list[tuple[str, str]]:
     """Dasselbe Angebot als Text zum Kopieren in WhatsApp Business / Teams (Deutsch, Englisch, Englisch in $)."""
-    out = [("Zum Kopieren für WhatsApp / Teams – Deutsch", mailer.whatsapp_text(items, "de")),
+    out = [("Zum Kopieren für WhatsApp / Teams – Deutsch", mailer.whatsapp_text(items, "de", texte=texte)),
            ("Zum Kopieren für WhatsApp / Teams – Englisch", mailer.whatsapp_text(items, "en"))]
     try:
         out.append(("Zum Kopieren für WhatsApp / Teams – Englisch in US-Dollar (z. B. Dubai)",
-                    mailer.whatsapp_text(items, "en", "USD", mailer.usd_rate())))
+                    mailer.whatsapp_text(items, "en", "USD", mailer.usd_rate(), texte)))
     except Exception:
         pass  # ohne Tageskurs nur die Euro-Fassungen
     return out

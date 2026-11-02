@@ -216,41 +216,74 @@ def _menge(n: int, sprache: str) -> str:
     return f"{n}x"
 
 
-def whatsapp_text(items: list, sprache: str = "de", waehrung: str = "EUR", rate: float | None = None) -> str:
+def whatsapp_text(items: list, sprache: str = "de", waehrung: str = "EUR", rate: float | None = None,
+                  texte: dict | None = None) -> str:
     """Kopierfertiger Text für WhatsApp/Teams in Marcs Stil (*fett* = WhatsApp-Fettschrift)."""
-    t = TEXTE[sprache]
+    t = _texte(sprache, texte)
     r = Recipient("", "", "", set(), sprache, waehrung)
-    bloecke = "\n\n".join(f"*{i.artikel}*\nEAN {i.ean}\n{_menge(i.verfuegbar, sprache)} · {_price(r, i.angebotspreis, rate)}"
-                           for i in items)
-    return f"{t['gruss_ohne']}\n\n{t['intro']}\n\n{bloecke}\n\n{t['outro']}"
+    bloecke = "\n\n".join((f"*_{rub}_*\n\n" if rub else "") +
+                           f"*{_name(i, sprache)}*\nEAN {i.ean}\n{_menge(i.verfuegbar, sprache)} · {_price(r, i.angebotspreis, rate)}"
+                           for rub, i in _mit_rubriken(items, sprache))
+    zusatz = f"{t['zusatz']}\n\n" if t.get("zusatz") else ""
+    return f"{t['gruss_ohne']}\n\n{t['intro']}\n\n{bloecke}\n\n{zusatz}{t['outro']}"
+
+
+def _texte(sprache: str, eigene: dict | None) -> dict:
+    """Standardtexte, überschrieben von den eigenen Texten eines Sonderangebots (je Sprache)."""
+    return {**TEXTE[sprache], **((eigene or {}).get(sprache) or {})}
+
+
+def _name(i, sprache: str) -> str:
+    return (getattr(i, "artikel_en", "") if sprache == "en" else "") or i.artikel
+
+
+def _rubrik(i, sprache: str) -> str:
+    return (getattr(i, "gruppe_en", "") if sprache == "en" else "") or getattr(i, "gruppe", "")
+
+
+def _mit_rubriken(items: list, sprache: str):
+    """(Überschrift oder None, Artikel) – Überschrift nur, wenn die Rubrik wechselt."""
+    vorher = None
+    for i in items:
+        rubrik = _rubrik(i, sprache)
+        yield (rubrik if rubrik and rubrik != vorher else None), i
+        vorher = rubrik
 
 
 def build_message(r: Recipient, items: list[StockItem], absender: str, absender_name: str,
-                  signatur: str = "", rate: float | None = None) -> EmailMessage:
-    t = TEXTE[r.sprache]
+                  signatur: str = "", rate: float | None = None, texte: dict | None = None) -> EmailMessage:
+    t = _texte(r.sprache, texte)
     gruss = t["gruss"].format(vorname=r.vorname) if r.vorname else t["gruss_ohne"]
     heute = date.today().strftime("%d.%m.%Y")
     eur = lambda v: _price(r, v, rate)
     menge = lambda n: _menge(n, r.sprache)
-    lines = "\n\n".join(f"{i.artikel}\n{i.ean}\n{menge(i.verfuegbar)}\n{eur(i.angebotspreis)}" for i in items)
+    lines = "\n\n".join((f"— {rub} —\n\n" if rub else "") +
+                         f"{_name(i, r.sprache)}\n{i.ean}\n{menge(i.verfuegbar)}\n{eur(i.angebotspreis)}"
+                         for rub, i in _mit_rubriken(items, r.sprache))
+    zusatz = t.get("zusatz", "")
     sig = signatur.strip() or absender_name
     logo_cid = make_msgid(domain="neobution.com")
-    text = f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n{t['outro']}\n\n{sig}\n\n{t['abmelden']}\n"
+    text = (f"{gruss}\n\n{t['intro']}\n\n{lines}\n\n" + (f"{zusatz}\n\n" if zusatz else "")
+            + f"{t['outro']}\n\n{sig}\n\n{t['abmelden']}\n")
     rows = "".join(
-        f"<tr><td>{html.escape(i.artikel)}</td><td>{i.ean}</td><td style='text-align:right'>{menge(i.verfuegbar)}</td>"
-        f"<td style='text-align:right;white-space:nowrap'>{eur(i.angebotspreis)}</td></tr>" for i in items
+        (f"<tr><td colspan='4' style='font-weight:bold;padding-top:14px;border-bottom:1px solid #ccc'>{html.escape(rub)}</td></tr>"
+         if rub else "") +
+        f"<tr><td>{html.escape(_name(i, r.sprache))}</td><td>{html.escape(i.ean)}</td><td style='text-align:right'>{menge(i.verfuegbar)}</td>"
+        f"<td style='text-align:right;white-space:nowrap'>{eur(i.angebotspreis)}</td></tr>"
+        for rub, i in _mit_rubriken(items, r.sprache)
     )
     kopf = "".join(f"<th align='left'>{h}</th>" for h in t["kopf"])
     body = (
         f"<p>{html.escape(gruss)}</p><p>{html.escape(t['intro'])}</p>"
         "<table cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px'>"
         f"<tr style='background:#eee'>{kopf}</tr>{rows}</table>"
-        f"<p>{html.escape(t['outro']).replace(chr(10), '<br>')}</p>"
+        + (f"<p>{html.escape(zusatz)}</p>" if zusatz else "")
+        + f"<p>{html.escape(t['outro']).replace(chr(10), '<br>')}</p>"
         + (f"<p><img src='cid:{logo_cid[1:-1]}' alt='Neobution' width='583' style='max-width:100%'></p>" if LOGO.exists() else "")
         + f"<p style='font-size:13px'>{_signature_html(sig)}</p><p style='color:#888;font-size:12px'>{html.escape(t['abmelden'])}</p>"
     )
     msg = EmailMessage()
-    msg["Subject"] = t["betreff"].format(datum=heute, marke=items[0].hersteller)
+    msg["Subject"] = t["betreff"].format(datum=heute, marke=items[0].hersteller)  # eigener Betreff darf {datum} nutzen
     msg["From"] = formataddr((absender_name, absender))
     msg["To"] = formataddr((r.vorname or r.firma, r.email))
     msg["Message-ID"] = make_msgid(domain=absender.split("@")[-1])
@@ -287,7 +320,8 @@ def mit_pflicht(chosen: list, pflicht: list) -> list:
 
 def build_all(recipients: list[Recipient], items: list[StockItem], absender: str, absender_name: str,
               neu_eans: set[str] | None = None, signatur: str = "", feste_artikel: list | None = None,
-              mix: str | None = None, gewaehlt: set[str] | None = None, pflicht: list | None = None) -> list[Mail]:
+              mix: str | None = None, gewaehlt: set[str] | None = None, pflicht: list | None = None,
+              texte: dict | None = None) -> list[Mail]:
     """feste_artikel: Sonderangebot – alle bekommen genau diese Artikel, ohne Auswahl.
     pflicht: Pflichtartikel des Tages – bei jedem ganz oben (höchstens MAX_ARTIKEL insgesamt).
     mix: Zufalls-Schlüssel für ein gemischtes Angebot (siehe mix_items).
@@ -306,7 +340,7 @@ def build_all(recipients: list[Recipient], items: list[StockItem], absender: str
         if gewaehlt is not None:
             gewaehlt |= {i.ean for i in chosen}
         if chosen:
-            out.append((r, build_message(r, chosen, absender, absender_name, signatur, rate), len(chosen)))
+            out.append((r, build_message(r, chosen, absender, absender_name, signatur, rate, texte), len(chosen)))
     return out
 
 

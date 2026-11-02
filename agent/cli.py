@@ -182,7 +182,7 @@ def main() -> None:
 
         listen_frisch = []
 
-        def build(neu_eans, stock=None, feste=None, mix=None, gewaehlt=None, pflicht=None):
+        def build(neu_eans, stock=None, feste=None, mix=None, gewaehlt=None, pflicht=None, texte=None):
             if not listen_frisch and os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") and "--vorschau" not in flags:
                 from .gsheet import fetch_mailing_lists
                 fetch_mailing_lists()  # immer der neueste Stand der Listen, auch beim Befehl von Hand
@@ -194,7 +194,7 @@ def main() -> None:
                 recipients = [r for r in mailer.load_recipients(liste) if r.email not in seen]
                 seen |= {r.email for r in recipients}
                 out[Path(liste).stem] = mailer.build_all(recipients, stock, absender, name, neu_eans, signatur, feste,
-                                                         mix, gewaehlt, pflicht)
+                                                         mix, gewaehlt, pflicht, texte)
             return out
 
         def faellig(antrag, zeit) -> bool:
@@ -259,11 +259,11 @@ def main() -> None:
                 if angebot[0] not in erledigt:
                     print("Dieses Sonderangebot wurde noch nicht freigegeben – nichts nachzuholen.")
                     return
-                send(build(None, feste=angebot[2]), was="Das Sonderangebot")  # schon freigegeben, nur Lücken füllen
+                send(build(None, feste=angebot[2], texte=sonder.texte()), was="Das Sonderangebot")  # schon freigegeben, nur Lücken füllen
                 return
             if angebot and angebot[0] in erledigt and "--nur-antworten" not in flags:
                 # Heute freigegeben und verschickt? Dann bekommen neu eingetragene Kontakte es noch nach.
-                by_list = build(None, feste=angebot[2])
+                by_list = build(None, feste=angebot[2], texte=sonder.texte())
                 if mailer.heute_verschickt([m for mails in by_list.values() for m in mails]):
                     flags.add("--nachholen")
                     send(by_list, was="Das Sonderangebot")
@@ -282,7 +282,7 @@ def main() -> None:
                 if antwort == "ja" and not faellig(antrag, zeit):
                     return
                 if antwort == "ja":
-                    send(build(None, feste=artikel), was="Das Sonderangebot")
+                    send(build(None, feste=artikel, texte=sonder.texte()), was="Das Sonderangebot")
                 if antwort in ("ja", "nein"):
                     erledigt.append(sid); state.pop("sonder_antrag"); mailer.save_state(state)
                     print(f"Sonderangebot {sid}: {'verschickt' if antwort == 'ja' else 'verworfen'}.")
@@ -294,8 +294,9 @@ def main() -> None:
                 return
             if "--nur-antworten" in flags:
                 return  # Minuten-Lauf: nur Antworten prüfen, keine neuen Freigabe-Mails
-            kennung = freigabe.new_request(state, {a.ean for a in artikel}, build(None, feste=artikel),
-                                           key="sonder_antrag", anlass=anlass, prefix="SO", whatsapp=artikel)
+            kennung = freigabe.new_request(state, {a.ean for a in artikel}, build(None, feste=artikel, texte=sonder.texte()),
+                                           key="sonder_antrag", anlass=anlass, prefix="SO", whatsapp=artikel,
+                                           texte=sonder.texte())
             state["sonder_antrag"]["id"] = sid; mailer.save_state(state)
             print(f"Sonder-Freigabe {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt.")
             return

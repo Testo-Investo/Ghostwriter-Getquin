@@ -25,6 +25,9 @@ class SonderItem:
     verfuegbar: int
     angebotspreis: float
     hersteller: str = ""
+    artikel_en: str = ""   # englischer Name für die englischen Listen (sonst wie artikel)
+    gruppe: str = ""       # Rubrik-Überschrift, z. B. „IT & Notebooks“
+    gruppe_en: str = ""
 
 
 def load() -> tuple[str, str, list[SonderItem]] | None:
@@ -33,10 +36,18 @@ def load() -> tuple[str, str, list[SonderItem]] | None:
     data = json.loads(DATEI.read_text())
     items = [
         SonderItem(a["artikel"], str(a.get("ean", "")), int(a["menge"]), float(a["preis"]),
-                   a.get("hersteller") or a["artikel"].split()[0])
+                   a.get("hersteller") or a["artikel"].split()[0], a.get("artikel_en", ""),
+                   a.get("gruppe", ""), a.get("gruppe_en", ""))
         for a in data["artikel"]
     ]
     return data["id"], data.get("anlass", "Sonderangebot"), items
+
+
+def texte() -> dict | None:
+    """Eigene Texte des Sonderangebots je Sprache: betreff, intro, outro, zusatz (optional)."""
+    if not DATEI.exists():
+        return None
+    return json.loads(DATEI.read_text()).get("texte")
 
 
 # Pflichtartikel: Marc sagt im Chat „am Montag auf jeden Fall X rein“ – steht dann im
