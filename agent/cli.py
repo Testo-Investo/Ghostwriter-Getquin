@@ -343,8 +343,16 @@ def main() -> None:
             return
         if antrag and antrag.get("version") != freigabe.code_version():
             # Texte/Regeln wurden geändert, seit Marc die Mail gesehen hat → alte Freigabe gilt nicht
+            if "--nur-antworten" in flags:
+                return  # neu anfragen macht der Stundenlauf bzw. der Befehl von Hand
             state.pop("antrag"); mailer.save_state(state)
             print(f"Freigabe {antrag['kennung']} ist veraltet (Änderungen seitdem) – neue Freigabe-Mail folgt.")
+            if state.get("zuletzt") != date.today().isoformat():
+                # gleich neu anfragen (nicht erst morgen früh), in derselben Art wie vorher
+                if antrag.get("mix"):
+                    mix_request(state, "Neue Fassung nach deinen Änderungen im Chat – Mix aus dem Bestand")
+                    return
+                flags.add("--force")  # Uhrzeit egal, Rest wie im 9:30-Lauf
             antrag = None
         if antrag:
             antwort, zeit = freigabe.check_answer_at(antrag["kennung"])

@@ -26,6 +26,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Der Kunde sieht niemals den EK.** Preis = Letzter VK; ohne letzten VK
   ⌀ EK + 10 %. Artikel mit letztem VK unter ⌀ EK werden weggelassen.
   **Alle Microsoft-Surface-Produkte werden nie angeboten.**
+  **Mindestmenge (Marc, 02.11.):** nur Artikel mit **mehr als 10 Stück** anbieten, außer der
+  Warenwert (Menge × Angebotspreis) liegt über **5.000 €** (`stock.lohnend`). Gilt für
+  Tagesangebot und Mix, nicht für Sonderangebote/Pflichtartikel (die nennt Marc selbst).
   **Stündlich aktualisiert, auch die Mengen.** Sortierung: oben stehen die neuesten
   Wareneingänge (Spalte „Letzter WE“). Diese Artikel immer genau beobachten und
   bevorzugt anbieten. **„Neu“ = Wareneingang der letzten 7 Tage** → stehen im
@@ -101,7 +104,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Marc will Änderungen nur hier im Chat machen, nie per
   Mail-Antwort** (Tippfehler-Risiko); die Antwort bleibt nur FREIGABE/STOPP/MIX. Eine
   Freigabe gilt nur für genau den Code-Stand (git HEAD) und Bestand, den Marc gesehen
-  hat; nach jedem Push wird ein offener Antrag ungültig und neu verschickt. Der Server
+  hat; nach jedem Push wird ein offener Antrag ungültig und sofort neu verschickt
+  (gleiche Art wie vorher, Mix bleibt Mix; nicht im Minuten-Lauf). Der Server
   holt Änderungen selbst (`git pull` am Anfang von `run_hourly.sh`).
   **Sonderangebote (manuell):** Marc postet im Chat, was der Einkauf schickt (z. B.
   WhatsApp). Claude schreibt daraus `config/sonderangebot.json` mit neuer `id`

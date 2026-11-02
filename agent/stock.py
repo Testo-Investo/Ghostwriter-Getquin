@@ -107,9 +107,17 @@ def available(items: list[StockItem]) -> list[StockItem]:
     return [i for i in items if i.verfuegbar > 0]
 
 
+MIN_MENGE = 10          # Marc, 02.11.: nur Artikel mit mehr als 10 Stück anbieten …
+MIN_WARENWERT = 5000.0  # … außer der Warenwert (Menge × Angebotspreis) liegt über 5.000 €
+
+
+def lohnend(i: StockItem) -> bool:
+    return i.verfuegbar > MIN_MENGE or i.verfuegbar * (i.angebotspreis or 0) > MIN_WARENWERT
+
+
 def offerable(items: list[StockItem]) -> list[StockItem]:
-    """Verfügbar, nicht ausgeschlossen und mit gültigem Angebotspreis."""
+    """Verfügbar, nicht ausgeschlossen, mit gültigem Angebotspreis und genug Menge/Warenwert."""
     return [
         i for i in available(items)
-        if i.angebotspreis is not None and not is_excluded(i.hersteller, i.artikel)
+        if i.angebotspreis is not None and not is_excluded(i.hersteller, i.artikel) and lohnend(i)
     ]
