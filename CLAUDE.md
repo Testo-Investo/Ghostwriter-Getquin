@@ -140,6 +140,11 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Bericht), höchstens 3 Versuche, Bericht beim Fortsetzen nur, wenn etwas rausging.
   Versand-Sperre `/run/ghostwriter-versand.lock`: Timer und Befehl von Hand laufen nie
   gleichzeitig.
+  **02.11.: Kunden bekamen eine Mail bis zu 10×** (Ursache noch offen, Timer auf dem Server
+  per `systemctl disable` aus, bis Marc wieder freigibt). Harte Sperre in `send_all`: nie dieselbe
+  Mail (Betreff) zweimal am Tag an dieselbe Adresse, höchstens `MAX_PRO_TAG`=2 Mails pro Adresse
+  und Tag, egal aus welchem Ablauf. Nach-Versand-Schritte (Bericht, 550er löschen) können den
+  Lauf nicht mehr abbrechen; Sonderangebot merkt `versand_gestartet` vor dem Versand.
   **Sperrliste `config/sperrliste.txt`** (im Repo): Marc sagt im Chat „nie mehr anschreiben“
   → Adresse dort eintragen und pushen; nie angeschrieben, der Stundenlauf löscht sie aus
   den Google-Tabellen (Info-Mail „auf deinen Wunsch gesperrt“). Seit 30.10.: msales@mwtuae.com,

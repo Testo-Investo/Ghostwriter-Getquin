@@ -233,12 +233,15 @@ def main() -> None:
                     ergebnis[stem] = (ok, len(mails), fehler)
                     print(("  Testversand an " + test_to if test_to else "  an Kunden versendet") + f" → {log}")
             if ergebnis and not test_to:
-                if not (bericht_nur_bei_erfolg and not any(e[0] for e in ergebnis.values())):
-                    mailer.versand_bericht(was, ergebnis)  # Info an Marc, dass alles raus ist
-                from . import postfach  # beim Versand abgelehnte Adressen (550) gleich aus den Listen löschen
-                _, fehler = postfach.entfernen(mailer.permanent_failures(), postfach.listen_adressen([Path(a) for a in args]))
-                if fehler:
-                    print(f"Unzustellbare Adressen nicht gelöscht: {fehler}")
+                try:  # nichts hiernach darf den Lauf abbrechen, bevor der Versand als erledigt gilt
+                    if not (bericht_nur_bei_erfolg and not any(e[0] for e in ergebnis.values())):
+                        mailer.versand_bericht(was, ergebnis)  # Info an Marc, dass alles raus ist
+                    from . import postfach  # beim Versand abgelehnte Adressen (550) gleich aus den Listen löschen
+                    _, fehler = postfach.entfernen(mailer.permanent_failures(), postfach.listen_adressen([Path(a) for a in args]))
+                    if fehler:
+                        print(f"Unzustellbare Adressen nicht gelöscht: {fehler}")
+                except Exception as e:
+                    print(f"Nach dem Versand: {e}")
             return ergebnis
 
         def ohne_bereits_gesendete(by_list, seit):
@@ -278,10 +281,19 @@ def main() -> None:
                 print(f"Sonder-Freigabe {antrag['kennung']} ist veraltet – neue Freigabe-Mail folgt.")
                 antrag = None
             if antrag:
+                if antrag.get("versand_gestartet"):
+                    # Versand lief schon (evtl. abgebrochen): nie im Minuten-Lauf wiederholen; der
+                    # Stundenlauf schließt ab – Fehlende holt die Nachhol-Logik oben (nur wer nichts hat)
+                    if "--nur-antworten" in flags:
+                        return
+                    erledigt.append(sid); state.pop("sonder_antrag"); mailer.save_state(state)
+                    print(f"Sonderangebot {sid}: Versand war schon gestartet – als erledigt vermerkt.")
+                    return
                 antwort, zeit = freigabe.check_answer_at(antrag["kennung"])
                 if antwort == "ja" and not faellig(antrag, zeit):
                     return
                 if antwort == "ja":
+                    antrag["versand_gestartet"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); mailer.save_state(state)
                     send(build(None, feste=artikel, texte=sonder.texte()), was="Das Sonderangebot")
                 if antwort in ("ja", "nein"):
                     erledigt.append(sid); state.pop("sonder_antrag"); mailer.save_state(state)

@@ -402,6 +402,7 @@ def smtp_test(to: str) -> None:
         smtp.send_message(msg)
 
 
+MAX_PRO_TAG = 2   # höchstens so viele Mails pro Adresse und Tag (Tagesangebot + ein Sonderangebot)
 ABBRUCH_NACH = 5  # so viele vorübergehende Ablehnungen (451) hintereinander → IONOS-Limit, Versand anhalten
 SESSION_MAX = 15  # IONOS nimmt pro Verbindung nur 20 Mails an („Mails per session limit exceeded“)
 _DAUERHAFT = re.compile(r"\(5\d\d,")  # 5xx = Adresse/Domain gibt es nicht
@@ -436,6 +437,7 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
     log = OUTBOX / f"versand_{date.today().isoformat()}.csv"
     log.parent.mkdir(parents=True, exist_ok=True)
     new_log = not log.exists()
+    heute = _heute_gesendet(log) if not test_to else {}
     smtp, in_sitzung = _verbinden(), 0
     try:
         with log.open("a", newline="") as f:
@@ -443,6 +445,11 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
             if new_log:
                 w.writerow(["zeit", "firma", "email", "betreff", "artikel", "status"])
             for r, msg, n in mails:
+                schon = heute.get(r.email, [])
+                if not test_to and (msg["Subject"] in schon or len(schon) >= MAX_PRO_TAG):
+                    # harte Sperre (02.11.: Kunden bekamen dieselbe Mail bis zu 10×): nie dieselbe Mail
+                    # zweimal am Tag und höchstens MAX_PRO_TAG Mails pro Adresse und Tag – egal woher
+                    continue
                 if gesperrt_in_folge >= ABBRUCH_NACH:
                     # IONOS lehnt alles ab (Versandlimit erreicht) – Rest nicht verbrennen, der nächste
                     # Lauf schickt ihn nach (nur an Adressen ohne „gesendet“ im Protokoll)
@@ -472,10 +479,22 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
                     gesperrt_in_folge = 0
                 w.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), r.firma, r.email, msg["Subject"], n, status])
                 f.flush()
+                if status == "gesendet":
+                    heute.setdefault(r.email, []).append(msg["Subject"])
                 time.sleep(PAUSE_SEKUNDEN)
     finally:
         _trennen(smtp)
     return log, ok, fehler
+
+
+def _heute_gesendet(log: Path) -> dict[str, list[str]]:
+    """Adresse → Betreffe, die heute schon mit Status „gesendet“ rausgingen."""
+    out: dict[str, list[str]] = {}
+    if log.exists():
+        for row in csv.DictReader(log.open(newline="")):
+            if row["status"] == "gesendet":
+                out.setdefault(row["email"], []).append(row["betreff"])
+    return out
 
 
 def gesendet_seit(seit: str) -> set[str]:
