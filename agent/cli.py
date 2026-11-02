@@ -292,6 +292,10 @@ def main() -> None:
                 antwort, zeit = freigabe.check_answer_at(antrag["kennung"])
                 if antwort == "ja" and not faellig(antrag, zeit):
                     return
+                ab = sonder.versand_ab()
+                if antwort == "ja" and ab and datetime.now() < datetime.fromisoformat(ab):
+                    print(f"Sonder-Freigabe {antrag['kennung']} erhalten – Versand am {ab[8:10]}.{ab[5:7]}. um {ab[11:16]} Uhr.")
+                    return
                 if antwort == "ja":
                     antrag["versand_gestartet"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S"); mailer.save_state(state)
                     send(build(None, feste=artikel, texte=sonder.texte()), was="Das Sonderangebot")
@@ -308,7 +312,7 @@ def main() -> None:
                 return  # Minuten-Lauf: nur Antworten prüfen, keine neuen Freigabe-Mails
             kennung = freigabe.new_request(state, {a.ean for a in artikel}, build(None, feste=artikel, texte=sonder.texte()),
                                            key="sonder_antrag", anlass=anlass, prefix="SO", whatsapp=artikel,
-                                           texte=sonder.texte())
+                                           texte=sonder.texte(), versand_ab=sonder.versand_ab())
             state["sonder_antrag"]["id"] = sid; mailer.save_state(state)
             print(f"Sonder-Freigabe {kennung} an {os.getenv('FREIGABE_AN', absender)} geschickt.")
             return
@@ -401,6 +405,9 @@ def main() -> None:
 
         if "--nur-antworten" in flags:
             return  # Minuten-Lauf: neue Freigabe-Mails nur im Stundenlauf
+        if sonder.ersetzt_tagesangebot(date.today().isoformat()):
+            print("Heute geht nur das geplante Sonderangebot raus – kein Tagesangebot.")
+            return
         um = int(os.getenv("ANGEBOT_UM", "9"))  # Marc: Freigabe-Mail im 9-Uhr-Lauf (9:30), Versand nach FREIGABE ab 10:30
         if datetime.now().hour != um and "--force" not in flags:
             print(f"Neues Angebot nur im Lauf zwischen {um} und {um + 1} Uhr – jetzt nichts zu tun.")

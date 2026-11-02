@@ -118,6 +118,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   übersetzt für die englischen Listen), Rubriken je Artikel (`gruppe`/`gruppe_en`) und
   englischen Artikelnamen (`artikel_en`). Surface/Mindestmenge gelten hier nicht: was Marc
   selbst als Sonderangebot schreibt, geht so raus (02.11.: Lagerräumung inkl. Surface).
+  **Geplanter Versand:** `versand_ab` (z. B. „2026-11-03T09:00“) – Freigabe-Mail sofort, nach
+  FREIGABE wartet der Minuten-Lauf bis zu dieser Zeit. `ersetzt_tagesangebot: true` → an dem Tag
+  kein normales Tagesangebot (Marc: „morgen erst mal keine weitere E-Mail“). Nach Marcs
+  FREIGABE bis zum Versand nichts pushen (Freigabe hängt am Code-Stand).
   **Postfach (stündlich, `postfach`, Posteingang + Spam-Ordner – Rückläufer landen oft im Spam):** Abwesenheitsnotizen → IMAP-Ordner
   „Abwesenheitsnotizen“; Rückläufer (dauerhaft, 5.x.x) → Adresse sofort aus der
   Google-Tabelle löschen (Dienstkonto braucht dafür **Bearbeiter** auf dem Listen-Ordner),

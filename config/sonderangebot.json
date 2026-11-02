@@ -1,31 +1,25 @@
 {
-  "id": "2026-11-02-lagerraeumung",
-  "anlass": "Sonderangebot: Lagerräumung – Restposten zu Sonderkonditionen",
+  "id": "2026-11-03-lagerware-top-preise",
+  "anlass": "Sonderangebot: Lagerware zu Top-Preisen (Versand Di 03.11. um 9:00 Uhr)",
+  "versand_ab": "2026-11-03T09:00",
+  "ersetzt_tagesangebot": true,
   "texte": {
     "de": {
-      "betreff": "Lagerräumung {datum} – Restposten zu Sonderkonditionen",
-      "intro": "wir räumen unser Lager und bieten Ihnen folgende Restposten in größeren Mengen zu Sonderkonditionen an:",
-      "zusatz": "Zusätzlich haben wir über 2.000 Dreame-Ersatzteile (Bürsten, Filter, Wischpads usw.) auf Lager, die wir gerne als gemischte Palette anbieten. Die Liste schicke ich Ihnen bei Interesse zu.",
-      "outro": "Preise netto, innerhalb Deutschlands frei Haus, solange Vorrat reicht.\nBei Interesse einfach kurz antworten."
+      "betreff": "Top-Preise {datum} – Lagerware sofort verfügbar",
+      "intro": "heute haben wir Lagerware zu richtig guten Preisen für dich, alles sofort verfügbar:"
     },
     "en": {
-      "betreff": "Warehouse clearance {datum} – surplus stock at special prices",
-      "intro": "we are clearing our warehouse and can offer you the following surplus stock in larger quantities at special prices:",
-      "zusatz": "In addition, we have more than 2,000 Dreame spare parts (brushes, filters, mop pads etc.) in stock, which we are happy to offer as a mixed pallet. I will gladly send you the list on request."
+      "betreff": "Best prices {datum} – stock available immediately",
+      "intro": "today we have stock items at really good prices for you, all available immediately:"
     }
   },
   "artikel": [
-    {"gruppe": "IT & Notebooks", "gruppe_en": "IT & Notebooks", "artikel": "Microsoft Surface Pro 7 i3/4 GB/128 GB (CPO)", "ean": "0889842499919", "menge": 111, "preis": 229.00, "hersteller": "Microsoft"},
-    {"gruppe": "IT & Notebooks", "gruppe_en": "IT & Notebooks", "artikel": "Microsoft Surface Pro 7 i7/16 GB/512 GB (CPO)", "ean": "0889842502145", "menge": 34, "preis": 369.00, "hersteller": "Microsoft"},
-    {"gruppe": "IT & Notebooks", "gruppe_en": "IT & Notebooks", "artikel": "Microsoft Surface Laptop 4 13,5\" i5/8 GB/512 GB", "artikel_en": "Microsoft Surface Laptop 4 13.5\" i5/8 GB/512 GB", "ean": "5BT-00119 / 5BT-00117 / 5BT-00029 / 5BT-00118", "menge": 52, "preis": 359.00, "hersteller": "Microsoft"},
-    {"gruppe": "IT & Notebooks", "gruppe_en": "IT & Notebooks", "artikel": "Microsoft Surface Laptop Go 2 i5/8 GB/256 GB (Tastatur CH/LUX)", "artikel_en": "Microsoft Surface Laptop Go 2 i5/8 GB/256 GB (keyboard CH/LUX)", "ean": "8QF-00017", "menge": 67, "preis": 299.00, "hersteller": "Microsoft"},
-    {"gruppe": "Haushalt & Fitness", "gruppe_en": "Household & Fitness", "artikel": "Dreame D10s Saugroboter", "artikel_en": "Dreame D10s robot vacuum", "ean": "6973734681651", "menge": 204, "preis": 149.00, "hersteller": "Dreame"},
-    {"gruppe": "Haushalt & Fitness", "gruppe_en": "Household & Fitness", "artikel": "Kingsmith WalkingPad A1 Pro", "ean": "6970492718643", "menge": 144, "preis": 229.00, "hersteller": "Kingsmith"},
-    {"gruppe": "Haushalt & Fitness", "gruppe_en": "Household & Fitness", "artikel": "Mamibot Flomo I Nass-/Trockensauger", "artikel_en": "Mamibot Flomo I wet/dry vacuum", "ean": "6970626161185", "menge": 443, "preis": 49.00, "hersteller": "Mamibot"},
-    {"gruppe": "Haushalt & Fitness", "gruppe_en": "Household & Fitness", "artikel": "Dreame Haarglätter Pink", "artikel_en": "Dreame hair straightener pink", "ean": "6973734687363", "menge": 80, "preis": 49.00, "hersteller": "Dreame"},
-    {"gruppe": "Audio & Zubehör", "gruppe_en": "Audio & Accessories", "artikel": "EPOS H6Pro Open Gaming-Headset Weiß", "artikel_en": "EPOS H6Pro Open gaming headset white", "ean": "5714708007739", "menge": 1326, "preis": 44.90, "hersteller": "EPOS"},
-    {"gruppe": "Audio & Zubehör", "gruppe_en": "Audio & Accessories", "artikel": "Blue Spark SL Blackout Studiomikrofon", "artikel_en": "Blue Spark SL Blackout studio microphone", "ean": "5099206085022", "menge": 200, "preis": 50.90, "hersteller": "Blue"},
-    {"gruppe": "Audio & Zubehör", "gruppe_en": "Audio & Accessories", "artikel": "EPOS ADAPT 561 Bluetooth-Headset", "artikel_en": "EPOS ADAPT 561 Bluetooth headset", "ean": "5714708008071", "menge": 118, "preis": 39.00, "hersteller": "EPOS"},
-    {"gruppe": "Audio & Zubehör", "gruppe_en": "Audio & Accessories", "artikel": "Poly EagleEye Mini Webcam", "ean": "0610807884316", "menge": 150, "preis": 22.90, "hersteller": "Poly"}
+    {"artikel": "Garmin fenix® 8 - 47 mm AMOLED Smartwatch Edelstahl", "artikel_en": "Garmin fenix® 8 - 47 mm AMOLED smartwatch stainless steel", "ean": "0753759338060", "menge": 444, "preis": 495.00, "hersteller": "Garmin"},
+    {"artikel": "Garmin fenix® 8 51mm AMOLED Schwarz/Schiefergrau", "artikel_en": "Garmin fenix® 8 51mm AMOLED black/slate grey", "ean": "0753759338152", "menge": 201, "preis": 535.00, "hersteller": "Garmin"},
+    {"artikel": "DJI Mini 5 Pro Fly More Combo (DJI RC 2)", "ean": "6937224123212", "menge": 246, "preis": 710.00, "hersteller": "DJI"},
+    {"artikel": "Insta360 X4 Travel Kit", "ean": "6970357858248", "menge": 229, "preis": 345.00, "hersteller": "Insta360"},
+    {"artikel": "Eufy S1", "ean": "0194644298357", "menge": 274, "preis": 305.00, "hersteller": "Eufy"},
+    {"artikel": "DREAME - AirStyle Pro Gold", "ean": "6977328063168", "menge": 1200, "preis": 125.00, "hersteller": "Dreame"},
+    {"artikel": "JBL Flip 7 schwarz", "artikel_en": "JBL Flip 7 black", "ean": "1200130019272", "menge": 2000, "preis": 62.50, "hersteller": "JBL"}
   ]
 }

@@ -43,6 +43,21 @@ def load() -> tuple[str, str, list[SonderItem]] | None:
     return data["id"], data.get("anlass", "Sonderangebot"), items
 
 
+def _daten() -> dict:
+    return json.loads(DATEI.read_text()) if DATEI.exists() else {}
+
+
+def versand_ab() -> str:
+    """Frühester Versand, z. B. „2026-11-03T09:00“ (leer = sofort nach Freigabe)."""
+    return _daten().get("versand_ab", "")
+
+
+def ersetzt_tagesangebot(tag: str) -> bool:
+    """Marc: an diesem Tag nur das Sonderangebot, kein normales Tagesangebot."""
+    d = _daten()
+    return bool(d.get("ersetzt_tagesangebot")) and d.get("versand_ab", "")[:10] == tag
+
+
 def texte() -> dict | None:
     """Eigene Texte des Sonderangebots je Sprache: betreff, intro, outro, zusatz (optional)."""
     if not DATEI.exists():
