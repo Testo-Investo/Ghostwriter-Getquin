@@ -140,7 +140,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   Bericht), höchstens 3 Versuche, Bericht beim Fortsetzen nur, wenn etwas rausging.
   Versand-Sperre `/run/ghostwriter-versand.lock`: Timer und Befehl von Hand laufen nie
   gleichzeitig.
-  **02.11.: Kunden bekamen eine Mail bis zu 10×** (Ursache noch offen, Timer auf dem Server
+  **02.11.: Kunden bekamen eine Mail bis zu 10×.** Ursache: `_verbinden()` beim Neuverbinden
+  (alle 15 Mails) scheiterte (IONOS-Timeout) und war ungefangen → Absturz vor „erledigt“ → der
+  Minuten-Lauf startete das Sonderangebot jede Minute von vorne. Jetzt gefangen (30 s warten, dann
+  Versand anhalten, Rest holt der Stundenlauf nach). Timer auf dem Server
   per `systemctl disable` aus, bis Marc wieder freigibt). Harte Sperre in `send_all`: nie dieselbe
   Mail (Betreff) zweimal am Tag an dieselbe Adresse, höchstens `MAX_PRO_TAG`=2 Mails pro Adresse
   und Tag, egal aus welchem Ablauf. Nach-Versand-Schritte (Bericht, 550er löschen) können den

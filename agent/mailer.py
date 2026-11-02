@@ -433,12 +433,15 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
     Nach SESSION_MAX Mails wird neu verbunden; wird eine Mail wegen des Limits pro
     Verbindung abgelehnt, wird neu verbunden und noch einmal versucht.
     Gibt (Protokoll, Anzahl gesendet, [(adresse, fehler)]) zurück."""
-    ok, fehler, gesperrt_in_folge = 0, [], 0
+    ok, fehler, gesperrt_in_folge, abbrechen = 0, [], 0, False
     log = OUTBOX / f"versand_{date.today().isoformat()}.csv"
     log.parent.mkdir(parents=True, exist_ok=True)
     new_log = not log.exists()
     heute = _heute_gesendet(log) if not test_to else {}
-    smtp, in_sitzung = _verbinden(), 0
+    try:
+        smtp, in_sitzung = _verbinden(), 0
+    except (smtplib.SMTPException, OSError) as e:  # IONOS nimmt gerade keine Verbindung an
+        return log, 0, [(r.email, f"nicht versucht – keine Verbindung zu IONOS ({e})") for r, _, _ in mails]
     try:
         with log.open("a", newline="") as f:
             w = csv.writer(f)
@@ -450,7 +453,7 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
                     # harte Sperre (02.11.: Kunden bekamen dieselbe Mail bis zu 10×): nie dieselbe Mail
                     # zweimal am Tag und höchstens MAX_PRO_TAG Mails pro Adresse und Tag – egal woher
                     continue
-                if gesperrt_in_folge >= ABBRUCH_NACH:
+                if abbrechen or gesperrt_in_folge >= ABBRUCH_NACH:
                     # IONOS lehnt alles ab (Versandlimit erreicht) – Rest nicht verbrennen, der nächste
                     # Lauf schickt ihn nach (nur an Adressen ohne „gesendet“ im Protokoll)
                     fehler.append((r.email, "nicht versucht – IONOS-Versandlimit, wird nachgeholt"))
@@ -461,7 +464,18 @@ def send_all(mails: list[Mail], test_to: str | None = None) -> tuple[Path, int, 
                 for versuch in range(2):
                     if in_sitzung >= SESSION_MAX or versuch:
                         _trennen(smtp)
-                        smtp, in_sitzung = _verbinden(), 0
+                        try:
+                            smtp, in_sitzung = _verbinden(), 0
+                        except (smtplib.SMTPException, OSError) as e:
+                            # 02.11.: dieser Fehler war ungefangen → Absturz → Neustart von vorne →
+                            # Kunden bekamen die Mail mehrfach. Jetzt: Versand sauber anhalten.
+                            time.sleep(30)
+                            try:
+                                smtp, in_sitzung = _verbinden(), 0
+                            except (smtplib.SMTPException, OSError):
+                                abbrechen = True
+                                status = f"fehler: keine Verbindung zu IONOS ({e})"
+                                break
                     try:
                         in_sitzung += 1
                         smtp.send_message(msg)
