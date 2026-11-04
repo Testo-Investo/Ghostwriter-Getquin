@@ -25,7 +25,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   anbieten, alles mit 0 ignorieren. Andere Spalten vorerst nicht relevant.
   **Der Kunde sieht niemals den EK.** Preis = Letzter VK; ohne letzten VK
   ⌀ EK + 10 %. Artikel mit letztem VK unter ⌀ EK werden weggelassen.
-  **Alle Microsoft-Surface-Produkte werden nie angeboten.**
+  **Alle Microsoft-Surface-Produkte werden nie angeboten.** Weitere Ausschlüsse (Marc im Chat:
+  „X aus dem Angebot löschen“) als Muster in `config/ausschluss.txt` (seit 04.11.: Dreame W10).
   **Mindestmenge (Marc, 02.11.):** nur Artikel mit **mehr als 10 Stück** anbieten, außer der
   Warenwert (Menge × Angebotspreis) liegt über **5.000 €** (`stock.lohnend`). Gilt für
   Tagesangebot und Mix, nicht für Sonderangebote/Pflichtartikel (die nennt Marc selbst).

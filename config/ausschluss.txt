@@ -1,0 +1,4 @@
+# Artikel, die nie im Tagesangebot/Mix stehen sollen (Marcs Anweisung im Chat).
+# Eine Zeile = Suchmuster für „Hersteller Artikelname“, Groß-/Kleinschreibung egal (.* = beliebig).
+# 04.11.2026: alle Dreame-W10-Artikel (Ersatzteile/Zubehör)
+dreame.*w10

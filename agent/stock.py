@@ -15,6 +15,7 @@ import csv
 import io
 import math
 import re
+from pathlib import Path
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -25,8 +26,20 @@ MARKUP_WITHOUT_LAST_VK = 0.10
 _SURFACE_MODEL = re.compile(r"\bsurface\b|\b(pro|laptop|book|studio|go)\s*\d", re.I)
 
 
+AUSSCHLUSS = Path("config/ausschluss.txt")  # Marcs Ausschlussliste (Muster je Zeile)
+
+
+def _ausschluss_muster() -> list[re.Pattern]:
+    if not AUSSCHLUSS.exists():
+        return []
+    zeilen = [z.strip() for z in AUSSCHLUSS.read_text().splitlines()]
+    return [re.compile(z, re.I) for z in zeilen if z and not z.startswith("#")]
+
+
 def is_excluded(hersteller: str, artikel: str) -> bool:
-    return hersteller.strip().lower() == "microsoft" and bool(_SURFACE_MODEL.search(artikel))
+    if hersteller.strip().lower() == "microsoft" and _SURFACE_MODEL.search(artikel):
+        return True
+    return any(m.search(f"{hersteller} {artikel}") for m in _ausschluss_muster())
 
 
 @dataclass
