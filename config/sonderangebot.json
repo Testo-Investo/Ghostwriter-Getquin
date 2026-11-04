@@ -1,16 +1,19 @@
 {
-  "id": "2026-11-04-mix-fest",
-  "anlass": "Wochen-Mix vom 04.11. (Artikel aus der 9:31-Freigabe, ohne Dreame W10) – an alle gleich",
-  "tag": "2026-11-04",
-  "ersetzt_tagesangebot": true,
+  "id": "2026-11-04-pny-rtx-pro-6000",
+  "anlass": "Sonderangebot: PNY RTX PRO 6000 Blackwell Server Edition (Vorverkauf, ab nächster Woche)",
+  "texte": {
+    "de": {
+      "betreff": "Vorverkauf: PNY RTX PRO 6000 Blackwell Server Edition – nur 6 Stück",
+      "intro": "nächste Woche kommt bei uns eine kleine Menge der PNY RTX PRO 6000 Blackwell Server Edition rein. Wer sich jetzt meldet, kann sich eins der 6 Stück reservieren:",
+      "zusatz": "Lieferbar ab nächster Woche. Reserviert wird in der Reihenfolge der Rückmeldungen."
+    },
+    "en": {
+      "betreff": "Pre-sale: PNY RTX PRO 6000 Blackwell Server Edition – only 6 units",
+      "intro": "next week we are receiving a small quantity of the PNY RTX PRO 6000 Blackwell Server Edition. Reply now to reserve one of the 6 units:",
+      "zusatz": "Available from next week. Units are reserved in the order of replies."
+    }
+  },
   "artikel": [
-    {"artikel": "Meta Quest 3s 128gb", "ean": "0815820025252", "menge": 18, "preis": 262.00, "hersteller": "Meta"},
-    {"artikel": "Lenovo ThinkPad Thunderbolt 5 Smart Dock", "ean": "0195892112907", "menge": 408, "preis": 239.14, "hersteller": "Lenovo"},
-    {"artikel": "Dell U4924DW", "ean": "5397184657133", "menge": 44, "preis": 885.00, "hersteller": "Dell"},
-    {"artikel": "Lenovo ThinkPad Essential 16\" Topload (Eco)", "ean": "0195477802698", "menge": 371, "preis": 14.50, "hersteller": "Lenovo"},
-    {"artikel": "Logitech Zone Wireless 2 Headset", "ean": "5099206103009", "menge": 15, "preis": 150.00, "hersteller": "Logitech"},
-    {"artikel": "Logitech POP Mouse Graphite 910-007412", "ean": "5099206126381", "menge": 514, "preis": 13.00, "hersteller": "Logitech"},
-    {"artikel": "ECOVACS Deebot Saugroboter X11 OMNI Cyclone black", "artikel_en": "ECOVACS Deebot robot vacuum X11 OMNI Cyclone black", "ean": "6970135037742", "menge": 50, "preis": 594.00, "hersteller": "ECOVACS"},
-    {"artikel": "Garmin Vivoactive 6 Pink Dawn/Pink Dawn Metallic", "ean": "0753759342838", "menge": 22, "preis": 205.00, "hersteller": "Garmin"}
+    {"artikel": "PNY RTX PRO 6000 Blackwell Server Edition (TCSRTXPRO6000SE-PB)", "ean": "3536403403638", "menge": 6, "preis": 18500.00, "hersteller": "PNY", "bild": "config/bilder/pny-rtx-pro-6000.jpg"}
   ]
 }

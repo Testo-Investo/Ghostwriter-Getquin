@@ -117,7 +117,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   einmal; zählt nicht gegen „eine Mail pro Tag“ (`agent/sonder.py`, `mail-sonder`).
   Optional mit eigenen Texten (`texte.de/en`: betreff, intro, zusatz, outro – Claude
   übersetzt für die englischen Listen), Rubriken je Artikel (`gruppe`/`gruppe_en`) und
-  englischen Artikelnamen (`artikel_en`). Surface/Mindestmenge gelten hier nicht: was Marc
+  englischen Artikelnamen (`artikel_en`), Produktbild je Artikel (`bild`: Pfad unter `config/bilder/`,
+  Claude verkleinert Marcs Bild auf 440 px JPEG; in der Mail 220 px breit, in der Freigabe-Mail
+  zusätzlich als Anhang für WhatsApp). Surface/Mindestmenge gelten hier nicht: was Marc
   selbst als Sonderangebot schreibt, geht so raus (02.11.: Lagerräumung inkl. Surface).
   **Geplanter Versand:** `versand_ab` (z. B. „2026-11-03T09:00“) – Freigabe-Mail sofort, nach
   FREIGABE wartet der Minuten-Lauf bis zu dieser Zeit. `ersetzt_tagesangebot: true` → an dem Tag

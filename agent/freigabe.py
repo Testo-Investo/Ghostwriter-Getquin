@@ -72,7 +72,7 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
     zeilen = "\n".join(f"  {name}: {len(m)} Mails" for name, m in mails_by_list.items())
     msg = EmailMessage()
     art = "Sonderangebot" if key != "antrag" else "Angebot"
-    titel = titel or f"{art} mit {len(eans)} Artikeln"
+    titel = titel or f"{art} mit {len(eans)} Artikel{'n' if len(eans) != 1 else ''}"
     msg["Subject"] = f"Freigabe nötig: {titel} an {gesamt} Kontakte [{kennung}]"
     msg["From"] = formataddr(("Ghostwriter", os.environ["MAIL_FROM"]))
     msg["To"] = os.getenv("FREIGABE_AN", os.environ["MAIL_FROM"])
