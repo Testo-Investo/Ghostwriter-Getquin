@@ -273,8 +273,14 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
         for rub, i in _mit_rubriken(items, r.sprache)
     )
     kopf = "".join(f"<th align='left'>{h}</th>" for h in t["kopf"])
+    # Produktbilder (Sonderangebote mit „bild“): klein über der Tabelle, eingebettet per Content-ID
+    bilder = [(Path(i.bild), make_msgid(domain="neobution.com")) for i in items
+              if getattr(i, "bild", "") and Path(i.bild).exists()]
+    bilder_html = "".join(f"<img src='cid:{cid[1:-1]}' alt='' width='{BILD_BREITE}' "
+                          f"style='max-width:100%;margin:0 12px 8px 0'>" for _, cid in bilder)
     body = (
         f"<p>{html.escape(gruss)}</p><p>{html.escape(t['intro'])}</p>"
+        + (f"<p>{bilder_html}</p>" if bilder_html else "") +
         "<table cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px'>"
         f"<tr style='background:#eee'>{kopf}</tr>{rows}</table>"
         + (f"<p>{html.escape(zusatz)}</p>" if zusatz else "")
@@ -292,6 +298,9 @@ def build_message(r: Recipient, items: list[StockItem], absender: str, absender_
     msg.add_alternative(body, subtype="html")
     if LOGO.exists():
         msg.get_payload()[1].add_related(LOGO.read_bytes(), "image", "png", cid=logo_cid)
+    for pfad, cid in bilder:
+        art = "jpeg" if pfad.suffix.lower() in (".jpg", ".jpeg") else pfad.suffix.lower().lstrip(".")
+        msg.get_payload()[1].add_related(pfad.read_bytes(), "image", art, cid=cid)
     return msg
 
 
@@ -373,9 +382,12 @@ def write_preview(mails: list[Mail], name: str = "") -> Path:
     for n, (r, msg, _) in enumerate(mails, 1):
         (folder / f"{n:03d}_{r.email.replace('@', '_at_')}.eml").write_bytes(bytes(msg))
         html_part = msg.get_body(("html",)).get_content()
-        if LOGO.exists():  # in der Vorschau das eingebettete Logo direkt anzeigen
-            import base64
-            html_part = re.sub(r"cid:[^']+", "data:image/png;base64," + base64.b64encode(LOGO.read_bytes()).decode(), html_part)
+        import base64  # in der Vorschau eingebettete Bilder (Logo, Produktbilder) direkt anzeigen
+        for teil in msg.walk():
+            if teil.get_content_maintype() == "image" and teil["Content-ID"]:
+                daten = base64.b64encode(teil.get_payload(decode=True)).decode()
+                html_part = html_part.replace(f"cid:{teil['Content-ID'][1:-1]}",
+                                              f"data:{teil.get_content_type()};base64,{daten}")
         cards.append(f"<section style='border:1px solid #ccc;margin:16px 0;padding:12px'><b>An:</b> {html.escape(msg['To'])}<br>"
                      f"<b>Betreff:</b> {html.escape(msg['Subject'])}<hr>{html_part}</section>")
     (folder / "vorschau.html").write_text(f"<meta charset='utf-8'><h1>{len(mails)} Angebots-Mails</h1>{''.join(cards)}")
@@ -404,6 +416,7 @@ def smtp_test(to: str) -> None:
 
 MAX_PRO_TAG = 2   # höchstens so viele Mails pro Adresse und Tag (Tagesangebot + ein Sonderangebot)
 ABBRUCH_NACH = 5  # so viele vorübergehende Ablehnungen (451) hintereinander → IONOS-Limit, Versand anhalten
+BILD_BREITE = 220  # Produktbild in der Mail: klein, Marc: „nicht zu groß“
 SESSION_MAX = 15  # IONOS nimmt pro Verbindung nur 20 Mails an („Mails per session limit exceeded“)
 _DAUERHAFT = re.compile(r"\(5\d\d,")  # 5xx = Adresse/Domain gibt es nicht
 

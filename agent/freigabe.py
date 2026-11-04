@@ -108,6 +108,11 @@ def new_request(state: dict, eans: set[str], mails_by_list: dict[str, list],
         if bild.get_content_maintype() == "image":
             msg.get_payload()[1].add_related(bild.get_payload(decode=True), "image", bild.get_content_subtype(),
                                              cid=bild["Content-ID"])
+    from pathlib import Path
+    for i in whatsapp or []:  # Produktbilder auch als Datei – zum Mitschicken in WhatsApp/Teams
+        if getattr(i, "bild", "") and Path(i.bild).exists():
+            art = "jpeg" if Path(i.bild).suffix.lower() in (".jpg", ".jpeg") else Path(i.bild).suffix.lstrip(".")
+            msg.add_attachment(Path(i.bild).read_bytes(), maintype="image", subtype=art, filename=Path(i.bild).name)
     for name, mails in mails_by_list.items():
         # als Datei (base64) anhängen – eingebettet als message/rfc822 hätte sie Zeilen
         # über 998 Zeichen, die IONOS mit „501 line too long“ ablehnt

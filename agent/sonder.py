@@ -28,6 +28,7 @@ class SonderItem:
     artikel_en: str = ""   # englischer Name für die englischen Listen (sonst wie artikel)
     gruppe: str = ""       # Rubrik-Überschrift, z. B. „IT & Notebooks“
     gruppe_en: str = ""
+    bild: str = ""         # Produktbild (Pfad im Repo, klein, z. B. config/bilder/x.jpg)
 
 
 def load() -> tuple[str, str, list[SonderItem]] | None:
@@ -37,7 +38,7 @@ def load() -> tuple[str, str, list[SonderItem]] | None:
     items = [
         SonderItem(a["artikel"], str(a.get("ean", "")), int(a["menge"]), float(a["preis"]),
                    a.get("hersteller") or a["artikel"].split()[0], a.get("artikel_en", ""),
-                   a.get("gruppe", ""), a.get("gruppe_en", ""))
+                   a.get("gruppe", ""), a.get("gruppe_en", ""), a.get("bild", ""))
         for a in data["artikel"]
     ]
     return data["id"], data.get("anlass", "Sonderangebot"), items
