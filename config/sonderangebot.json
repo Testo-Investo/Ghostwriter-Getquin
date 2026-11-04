@@ -1,25 +1,16 @@
 {
-  "id": "2026-11-03-lagerware-top-preise",
-  "anlass": "Sonderangebot: Lagerware zu Top-Preisen (Versand Di 03.11. um 9:00 Uhr)",
-  "versand_ab": "2026-11-03T09:00",
+  "id": "2026-11-04-mix-fest",
+  "anlass": "Wochen-Mix vom 04.11. (Artikel aus der 9:31-Freigabe, ohne Dreame W10) – an alle gleich",
+  "tag": "2026-11-04",
   "ersetzt_tagesangebot": true,
-  "texte": {
-    "de": {
-      "betreff": "Top-Preise {datum} – Lagerware sofort verfügbar",
-      "intro": "heute haben wir Lagerware zu richtig guten Preisen für dich, alles sofort verfügbar:"
-    },
-    "en": {
-      "betreff": "Best prices {datum} – stock available immediately",
-      "intro": "today we have stock items at really good prices for you, all available immediately:"
-    }
-  },
   "artikel": [
-    {"artikel": "Garmin fenix® 8 - 47 mm AMOLED Smartwatch Edelstahl", "artikel_en": "Garmin fenix® 8 - 47 mm AMOLED smartwatch stainless steel", "ean": "0753759338060", "menge": 444, "preis": 495.00, "hersteller": "Garmin"},
-    {"artikel": "Garmin fenix® 8 51mm AMOLED Schwarz/Schiefergrau", "artikel_en": "Garmin fenix® 8 51mm AMOLED black/slate grey", "ean": "0753759338152", "menge": 201, "preis": 535.00, "hersteller": "Garmin"},
-    {"artikel": "DJI Mini 5 Pro Fly More Combo (DJI RC 2)", "ean": "6937224123212", "menge": 246, "preis": 710.00, "hersteller": "DJI"},
-    {"artikel": "Insta360 X4 Travel Kit", "ean": "6970357858248", "menge": 229, "preis": 345.00, "hersteller": "Insta360"},
-    {"artikel": "Eufy S1", "ean": "0194644298357", "menge": 274, "preis": 305.00, "hersteller": "Eufy"},
-    {"artikel": "DREAME - AirStyle Pro Gold", "ean": "6977328063168", "menge": 1200, "preis": 125.00, "hersteller": "Dreame"},
-    {"artikel": "JBL Flip 7 schwarz", "artikel_en": "JBL Flip 7 black", "ean": "1200130019272", "menge": 2000, "preis": 62.50, "hersteller": "JBL"}
+    {"artikel": "Meta Quest 3s 128gb", "ean": "0815820025252", "menge": 18, "preis": 262.00, "hersteller": "Meta"},
+    {"artikel": "Lenovo ThinkPad Thunderbolt 5 Smart Dock", "ean": "0195892112907", "menge": 408, "preis": 239.14, "hersteller": "Lenovo"},
+    {"artikel": "Dell U4924DW", "ean": "5397184657133", "menge": 44, "preis": 885.00, "hersteller": "Dell"},
+    {"artikel": "Lenovo ThinkPad Essential 16\" Topload (Eco)", "ean": "0195477802698", "menge": 371, "preis": 14.50, "hersteller": "Lenovo"},
+    {"artikel": "Logitech Zone Wireless 2 Headset", "ean": "5099206103009", "menge": 15, "preis": 150.00, "hersteller": "Logitech"},
+    {"artikel": "Logitech POP Mouse Graphite 910-007412", "ean": "5099206126381", "menge": 514, "preis": 13.00, "hersteller": "Logitech"},
+    {"artikel": "ECOVACS Deebot Saugroboter X11 OMNI Cyclone black", "artikel_en": "ECOVACS Deebot robot vacuum X11 OMNI Cyclone black", "ean": "6970135037742", "menge": 50, "preis": 594.00, "hersteller": "ECOVACS"},
+    {"artikel": "Garmin Vivoactive 6 Pink Dawn/Pink Dawn Metallic", "ean": "0753759342838", "menge": 22, "preis": 205.00, "hersteller": "Garmin"}
   ]
 }

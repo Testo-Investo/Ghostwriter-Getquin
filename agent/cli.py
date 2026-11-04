@@ -325,6 +325,11 @@ def main() -> None:
 
         state = mailer.load_state()
         antrag = state.get("antrag")
+        if sonder.ersetzt_tagesangebot(date.today().isoformat()) and antrag and not antrag.get("versand_gestartet"):
+            # Heute geht stattdessen das Sonderangebot raus – offene Tagesangebots-Freigabe verwerfen
+            state.pop("antrag"); mailer.save_state(state)
+            print(f"Freigabe {antrag['kennung']} verworfen – heute geht stattdessen das Sonderangebot raus.")
+            return
         if antrag and not antrag.get("versand_gestartet") and "--vorschau" not in flags:
             # ältere Anträge: Versand lief schon an, wenn seit Antrag Mails rausgingen (Abbruch mittendrin)
             seit = antrag["erstellt"].replace("T", " ")

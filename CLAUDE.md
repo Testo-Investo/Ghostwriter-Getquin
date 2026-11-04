@@ -122,7 +122,10 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Geplanter Versand:** `versand_ab` (z. B. „2026-11-03T09:00“) – Freigabe-Mail sofort, nach
   FREIGABE wartet der Minuten-Lauf bis zu dieser Zeit. `ersetzt_tagesangebot: true` → an dem Tag
   kein normales Tagesangebot (Marc: „morgen erst mal keine weitere E-Mail“). Nach Marcs
-  FREIGABE bis zum Versand nichts pushen (Freigabe hängt am Code-Stand).
+  FREIGABE bis zum Versand nichts pushen (Freigabe hängt am Code-Stand). Mit `tag` statt
+  `versand_ab` ersetzt ein Sonderangebot das Tagesangebot sofort (offene GW-Freigabe wird
+  verworfen) – so am 04.11.: Marc wollte genau die Artikel der 9:31-Mix-Freigabe ohne W10;
+  ein Mix lässt sich nach dem Neuanfordern nicht wiederherstellen (Seed überschrieben).
   **Postfach (stündlich, `postfach`, Posteingang + Spam-Ordner – Rückläufer landen oft im Spam):** Abwesenheitsnotizen → IMAP-Ordner
   „Abwesenheitsnotizen“; Rückläufer (dauerhaft, 5.x.x) → Adresse sofort aus der
   Google-Tabelle löschen (Dienstkonto braucht dafür **Bearbeiter** auf dem Listen-Ordner),

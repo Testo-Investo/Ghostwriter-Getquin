@@ -55,7 +55,7 @@ def versand_ab() -> str:
 def ersetzt_tagesangebot(tag: str) -> bool:
     """Marc: an diesem Tag nur das Sonderangebot, kein normales Tagesangebot."""
     d = _daten()
-    return bool(d.get("ersetzt_tagesangebot")) and d.get("versand_ab", "")[:10] == tag
+    return bool(d.get("ersetzt_tagesangebot")) and (d.get("tag") or d.get("versand_ab", "")[:10]) == tag
 
 
 def texte() -> dict | None:
