@@ -404,9 +404,17 @@ def main() -> None:
             elif freigabe.expired(antrag):
                 state.pop("antrag"); mailer.save_state(state)
                 print(f"Freigabe {antrag['kennung']} ohne Antwort verfallen.")
+            elif antrag["erstellt"][:10] < date.today().isoformat() and "--nur-antworten" not in flags:
+                # 11.11.: Montag nicht beantwortet → Di/Mi kam kein Angebot, weil der alte Antrag
+                # blockierte. Jetzt: ein unbeantworteter Antrag vom Vortag verfällt, der neue Tag
+                # bekommt seine eigene Freigabe-Mail (im 9:30-Lauf bzw. mit --force).
+                state.pop("antrag"); mailer.save_state(state)
+                print(f"Freigabe {antrag['kennung']} vom {antrag['erstellt'][:10]} unbeantwortet – verfällt, neues Angebot für heute.")
+                antrag = None
             else:
                 print(f"Warte auf Freigabe {antrag['kennung']}.")
-            return
+            if antrag is not None:
+                return
 
         if "--nur-antworten" in flags:
             return  # Minuten-Lauf: neue Freigabe-Mails nur im Stundenlauf
@@ -421,7 +429,7 @@ def main() -> None:
         if state["zuletzt"] == date.today().isoformat() and "--force" not in flags:
             print("Heute wurde schon verschickt – morgen geht's weiter.")
             return
-        if date.today().weekday() == MIX_TAG and "--force" not in flags:  # Marc: einmal die Woche ein Mix
+        if date.today().weekday() == MIX_TAG:  # Marc: einmal die Woche ein Mix (auch bei --force)
             mix_request(state, "Wochen-Mix – neue und ältere Artikel aus dem ganzen Bestand")
             return
         if not neu_eans:  # keine neue Ware: trotzdem ein Angebot, bunt gemischt aus dem Bestand
