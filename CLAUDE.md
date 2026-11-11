@@ -86,7 +86,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   (`mailer.mix_items`, je Kunde bis zur Hälfte seine Marken, Zufall fest per Seed im
   Antrag). Ohne neue Ware um 9:30 kommt automatisch ein Mix zur Freigabe.
   **Wochen-Mix (Marc, 30.10.: „einmal die Woche, auch in Zukunft“):** mittwochs (`MIX_TAG`=2)
-  ist das Tagesangebot immer ein Mix aus dem ganzen Bestand. **WhatsApp/Teams:** jede
+  ist das Tagesangebot immer ein Mix aus dem ganzen Bestand. **Auch im Mix stehen neue
+  Wareneingänge (7 Tage) immer oben** (neueste zuerst, höchstens `MIX_NEU_MAX`=7, Rest zufällig
+  älter) – 11.11.: der Mix war rein zufällig und ließ 4 neue Artikel des Tages weg. **WhatsApp/Teams:** jede
   Freigabe-Mail enthält das Angebot zusätzlich als kopierfertigen Text (Deutsch, Englisch,
   Englisch in $), `mailer.whatsapp_text`; Marc nutzt dafür WhatsApp-Business-Broadcast-Listen.
   Kundenpreise aus den Preisspalten pro Kunde: vorerst nicht (Marc).

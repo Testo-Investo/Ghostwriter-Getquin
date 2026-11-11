@@ -174,12 +174,20 @@ def mix_items(recipient: Recipient, items: list[StockItem], seed: str) -> list[S
     import random
     rnd = random.Random(f"{seed}:{recipient.email}")
     pool = sorted(offerable(items), key=lambda i: i.position)
-    mine = [i for i in pool if i.hersteller.lower() in recipient.marken
-            or i.hersteller.lower().replace("!", "") in recipient.marken]
-    chosen = rnd.sample(mine, min(len(mine), MAX_ARTIKEL // 2))
+    ist_meins = lambda i: (i.hersteller.lower() in recipient.marken
+                           or i.hersteller.lower().replace("!", "") in recipient.marken)
+    # Marc (11.11.): neue Wareneingänge (7 Tage) stehen auch im Mix immer oben – neueste zuerst,
+    # seine Marken bevorzugt, höchstens MIX_NEU_MAX, damit noch ältere Ware Platz hat
+    frisch_eans = {f.ean for f in fresh_arrivals(items)}
+    frisch = [i for i in pool if i.ean in frisch_eans]
+    chosen = ([i for i in frisch if ist_meins(i)] + [i for i in frisch if not ist_meins(i)])[:MIX_NEU_MAX]
+    chosen.sort(key=lambda i: i.position)
     rest = [i for i in pool if i not in chosen]
-    chosen += rnd.sample(rest, min(len(rest), MAX_ARTIKEL - len(chosen)))
-    return sorted(chosen, key=lambda i: i.position)
+    mine = [i for i in rest if ist_meins(i)]
+    zufall = rnd.sample(mine, min(len(mine), (MAX_ARTIKEL - len(chosen)) // 2))
+    rest = [i for i in rest if i not in zufall]
+    zufall += rnd.sample(rest, min(len(rest), MAX_ARTIKEL - len(chosen) - len(zufall)))
+    return chosen + sorted(zufall, key=lambda i: i.position)
 
 
 def usd_rate() -> float:
@@ -416,6 +424,7 @@ def smtp_test(to: str) -> None:
 
 MAX_PRO_TAG = 2   # höchstens so viele Mails pro Adresse und Tag (Tagesangebot + ein Sonderangebot)
 ABBRUCH_NACH = 5  # so viele vorübergehende Ablehnungen (451) hintereinander → IONOS-Limit, Versand anhalten
+MIX_NEU_MAX = 7   # so viele neue Wareneingänge höchstens im Mix (Rest: ältere Ware gemischt)
 BILD_BREITE = 220  # Produktbild in der Mail: klein, Marc: „nicht zu groß“
 SESSION_MAX = 15  # IONOS nimmt pro Verbindung nur 20 Mails an („Mails per session limit exceeded“)
 _DAUERHAFT = re.compile(r"\(5\d\d,")  # 5xx = Adresse/Domain gibt es nicht
