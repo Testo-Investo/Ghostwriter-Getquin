@@ -95,7 +95,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
   **Pflichtartikel `config/pflichtartikel.json`:** Marc sagt „am Montag auf jeden Fall X rein,
   Menge/Preis“ → Eintrag mit `datum` (JJJJ-MM-TT), steht im Tagesangebot an dem Tag bei jedem
   Kunden ganz oben (auch im Mix und in den WhatsApp-Texten), Menge/Preis wie von Marc genannt;
-  wird im Antrag gespeichert. 02.11.2026: Zebra ZD411d, 200 Stück, 233 €.
+  wird im Antrag gespeichert. 02.11.2026: Zebra ZD411d, 200 Stück, 233 €. 11.11.: Echo Show 8 weiß 125 €,
+  Echo Dot Blue 35 €, Lenovo Dock 7500 Gen 2 159 €, Dock 5500 139 €. **Befehle von Hand laden
+  den Warenbestand vorher frisch** (11.11.: neue Ware fehlte, weil der Stand vom Stundenlauf war).
   **Freigabe vor jedem Versand (Marcs Wunsch):** `mail-neu` schickt zuerst eine
   Freigabe-Mail an Marc ([GW-…] im Betreff, je Liste eine Beispiel-Mail im Anhang);
   erst wenn Marc mit „FREIGABE“ antwortet (per IMAP imap.ionos.de gelesen), geht

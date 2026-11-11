@@ -168,6 +168,13 @@ def main() -> None:
     if cmd in ("mail-preview", "mail-send", "mail-neu", "mail-sonder"):
         if "--vorschau" not in sys.argv:
             _versand_sperre()  # nie zwei Versände gleichzeitig (Timer + Befehl von Hand)
+        if os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE") and not {"--vorschau", "--nur-antworten"} & set(sys.argv):
+            # 11.11.: Befehl von Hand nutzte den Bestand vom letzten Stundenlauf → neue Ware fehlte
+            from .gsheet import fetch_stock_csv
+            try:
+                fetch_stock_csv()
+            except Exception as e:
+                print(f"Warenbestand nicht neu geladen ({e}) – nehme den letzten Stand.")
         current = parse_stock_csv(Path(os.getenv("STOCK_CSV", "data/warenbestand.csv")).read_text())
         args = sys.argv[2:]
         flags = {a for a in args if a in ("--vorschau", "--force", "--ohne-freigabe", "--nachholen", "--nur-antworten")}

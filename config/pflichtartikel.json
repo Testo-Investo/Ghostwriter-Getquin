@@ -1,5 +1,44 @@
 {
   "artikel": [
-    {"datum": "2026-11-02", "artikel": "Zebra ZD411d", "ean": "5715063083642", "menge": 200, "preis": 233.00, "hersteller": "Zebra"}
+    {
+      "datum": "2026-11-02",
+      "artikel": "Zebra ZD411d",
+      "ean": "5715063083642",
+      "menge": 200,
+      "preis": 233.0,
+      "hersteller": "Zebra"
+    },
+    {
+      "datum": "2026-11-11",
+      "artikel": "Amazon Echo Show 8 (2025) weiß - B0DTQWYZFF",
+      "ean": "0840414640375",
+      "menge": 638,
+      "preis": 125.0,
+      "hersteller": "Amazon"
+    },
+    {
+      "datum": "2026-11-11",
+      "artikel": "Amazon Echo Dot - Blue - B09B8RF4PY",
+      "ean": "0840080523972",
+      "menge": 1500,
+      "preis": 35.0,
+      "hersteller": "Amazon"
+    },
+    {
+      "datum": "2026-11-11",
+      "artikel": "Lenovo ThinkPad Smart Dock 7500 Gen 2 - 40BE0135EU",
+      "ean": "0195892121305",
+      "menge": 2950,
+      "preis": 159.0,
+      "hersteller": "Lenovo"
+    },
+    {
+      "datum": "2026-11-11",
+      "artikel": "Lenovo ThinkPad Smart Dock 5500 - 40BC0135EU",
+      "ean": "0195892130499",
+      "menge": 500,
+      "preis": 139.0,
+      "hersteller": "Lenovo"
+    }
   ]
 }
