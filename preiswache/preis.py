@@ -6,6 +6,10 @@ Mail über das IONOS-Postfach des Ghostwriters (/opt/ghostwriter/.env).
 
   python preiswache/preis.py          prüfen, bei Unterschreitung Mail
   python preiswache/preis.py --test   nur den gefundenen Preis anzeigen, keine Mail
+  … --test --debug                    zusätzlich die Stellen im Quelltext mit „Sparplan“
+
+Maßgeblich ist der „Preis mit Sparplan“ (Marc, 12.11.); steht er nicht im Quelltext, zählt
+der normale Preis.
 
 Gemeldet wird einmal, wenn der Preis unter die Grenze fällt, und erneut erst, wenn er
 zwischendurch wieder darüber lag oder noch weiter gefallen ist.
@@ -81,10 +85,35 @@ def preis_aus_html(html: str) -> float | None:
     return None
 
 
-def hole_preis(url: str) -> float | None:
+_SPARPLAN = re.compile(r"preis\s+mit\s+sparplan", re.I)
+_BETRAG = re.compile(r"(\d{1,4}(?:[.,]\d{2}))\s*(?:€|&euro;|EUR)")
+
+
+def _text(html: str) -> str:
+    """Sichtbarer Text ohne Tags und Skripte (Leerzeichen zusammengefasst)."""
+    html = re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).replace("&nbsp;", " ")
+
+
+def sparplan_aus_html(html: str) -> float | None:
+    """Marc (12.11.): maßgeblich ist der „Preis mit Sparplan“ – der erste Betrag hinter diesem Text."""
+    text = _text(html)
+    for m in _SPARPLAN.finditer(text):
+        if (b := _BETRAG.search(text[m.end():m.end() + 80])) and (p := _zahl(b.group(1))) is not None:
+            return p
+    return None
+
+
+def hole_preis(url: str) -> tuple[float | None, str]:
+    """(Preis, Art): Sparplan-Preis, sonst der normale Preis der Seite."""
     resp = requests.get(url, headers=KOPF, timeout=30)
     resp.raise_for_status()
-    return preis_aus_html(resp.text)
+    if "--debug" in sys.argv:  # zeigt, wie der Sparplan-Preis im Quelltext steht
+        for m in re.finditer(r"sparplan", resp.text, re.I):
+            print("…", " ".join(resp.text[max(0, m.start() - 150):m.end() + 250].split()), "…\n")
+    if (p := sparplan_aus_html(resp.text)) is not None:
+        return p, "Preis mit Sparplan"
+    return preis_aus_html(resp.text), "normaler Preis – Sparplan-Preis nicht gefunden"
 
 
 def mail(betreff: str, text: str) -> None:
@@ -106,12 +135,12 @@ def euro(v: float) -> str:
 def pruefe(produkt: dict, stand: dict, test: bool = False) -> None:
     jetzt = f"{datetime.now():%d.%m.%Y %H:%M}"
     try:
-        preis = hole_preis(produkt["url"])
+        preis, art = hole_preis(produkt["url"])
         fehler = "" if preis is not None else "kein Preis auf der Seite gefunden"
     except requests.RequestException as e:
-        preis, fehler = None, str(e)[:200]
+        preis, art, fehler = None, "", str(e)[:200]
     if test:
-        print(f"{produkt['name']}: " + (f"{euro(preis)} (Grenze {euro(produkt['grenze'])})" if preis is not None else f"FEHLER – {fehler}"))
+        print(f"{produkt['name']}: " + (f"{euro(preis)} [{art}] (Grenze {euro(produkt['grenze'])})" if preis is not None else f"FEHLER – {fehler}"))
         return
     if preis is None:
         stand["fehler"] = stand.get("fehler", 0) + 1
@@ -123,11 +152,11 @@ def pruefe(produkt: dict, stand: dict, test: bool = False) -> None:
         return
     stand["fehler"] = 0
     gemeldet = stand.get("gemeldet")  # Preis der letzten Meldung, None = zuletzt über der Grenze
-    print(f"{jetzt} {produkt['name']}: {euro(preis)}")
+    print(f"{jetzt} {produkt['name']}: {euro(preis)} [{art}]")
     if preis < produkt["grenze"] and (gemeldet is None or preis < gemeldet):
         mail(f"Preisalarm: {produkt['name']} jetzt {euro(preis)}",
              f"Moin Marc,\n\nder Preis ist unter {euro(produkt['grenze'])} gefallen:\n\n"
-             f"  {produkt['name']}\n  Jetzt: {euro(preis)}  (geprüft {jetzt} Uhr)\n\n{produkt['url']}\n")
+             f"  {produkt['name']}\n  Jetzt: {euro(preis)}  ({art}, geprüft {jetzt} Uhr)\n\n{produkt['url']}\n")
         stand["gemeldet"] = preis
         print("  → Mail an Marc geschickt")
     elif preis >= produkt["grenze"]:
