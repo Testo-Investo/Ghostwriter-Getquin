@@ -1,9 +1,0 @@
-[Unit]
-Description=Preiswache alle 2 Stunden, 9–17 Uhr, Montag bis Sonntag
-
-[Timer]
-OnCalendar=*-*-* 09,11,13,15,17:00:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
