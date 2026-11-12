@@ -1,0 +1,8 @@
+[Unit]
+Description=Preiswache: Produktpreise prüfen und Marc bei Unterschreitung mailen
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/ghostwriter
+ExecStart=/opt/ghostwriter/.venv/bin/python /opt/ghostwriter/preiswache/preis.py

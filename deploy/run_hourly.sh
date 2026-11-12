@@ -12,7 +12,8 @@ main() {
   git pull -q --ff-only   # Änderungen aus dem Chat automatisch übernehmen
   # Zeitpläne aus dem Repo übernehmen, falls sie sich geändert haben
   local unit neu=""
-  for unit in ghostwriter.timer ghostwriter-freigabe.service ghostwriter-freigabe.timer; do
+  for unit in ghostwriter.timer ghostwriter-freigabe.service ghostwriter-freigabe.timer \
+              preiswache.service preiswache.timer; do
     if ! cmp -s "deploy/$unit" "/etc/systemd/system/$unit"; then
       cp "deploy/$unit" "/etc/systemd/system/$unit"
       neu=1
@@ -20,7 +21,7 @@ main() {
   done
   if [ -n "$neu" ]; then
     systemctl daemon-reload
-    systemctl enable --now ghostwriter-freigabe.timer
+    systemctl enable --now ghostwriter-freigabe.timer preiswache.timer
     echo "Zeitpläne aktualisiert"
   fi
   $PY -m agent.cli fetch-stock

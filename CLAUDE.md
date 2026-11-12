@@ -227,4 +227,9 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/sonder.py` – Sonderangebot aus `config/sonderangebot.json` (aus dem Chat)
 - `agent/postfach.py` – Abwesenheitsnotizen wegsortieren, Rückläufer aus den Listen löschen
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
+- `preiswache/preis.py` – Marcs private Preiswache (12.11.): prüft Produktseiten (Liste `PRODUKTE`,
+  zuerst HSN Evowhey 2kg Schokolade, Grenze 60 €) täglich 9/11/13/15/17 Uhr (`deploy/preiswache.timer`),
+  Mail an Marc bei Unterschreitung (einmal, erneut erst nach Erholung oder weiterem Fall) und wenn
+  der Preis 3× nicht lesbar war. `--test` zeigt nur den Preis. Zählt nicht zum Code-Stand der Freigaben
+  (`freigabe.code_version` = letzter Commit in `agent/` oder `config/`).
 - `data/` – lokale Exporte, nie committen (enthält Kundendaten)

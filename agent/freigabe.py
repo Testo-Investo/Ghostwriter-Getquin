@@ -35,7 +35,9 @@ BESTAND_ANTRAG = mailer.STATE.parent / "antrag_warenbestand.csv"  # Stand, den M
 def code_version() -> str:
     """Aktueller Code-Stand (git). Ändert sich, sobald Claude etwas an Texten/Regeln ändert."""
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        # nur was die Mails beeinflusst (Code, Texte, Regeln) – z. B. die Preiswache zählt nicht
+        return subprocess.run(["git", "log", "-1", "--format=%h", "--", "agent", "config"],
+                              capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return "unbekannt"
 
