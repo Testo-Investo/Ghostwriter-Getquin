@@ -29,10 +29,11 @@ import requests
 from dotenv import load_dotenv
 
 BASIS = Path(__file__).resolve().parent.parent
-PRODUKTE = [
-    {"name": "HSN Evowhey Protein 2kg Schokolade mit Stevia", "grenze": 60.00,
-     "url": "https://www.hsnstore.de/marken/sport-series/evowhey-protein-2kg-schokolade-mit-stevia"},
-]
+# 12.11.: hsnstore.de lehnt Abrufe vom Server ab (403, Bot-Schutz). Der Schutz wird nicht umgangen,
+# deshalb ist das Produkt hier abgeschaltet – Marc beobachtet es im eigenen Browser.
+# {"name": "HSN Evowhey Protein 2kg Schokolade mit Stevia", "grenze": 60.00,
+#  "url": "https://www.hsnstore.de/marken/sport-series/evowhey-protein-2kg-schokolade-mit-stevia"},
+PRODUKTE: list[dict] = []
 STATE = BASIS / "data" / "preiswache.json"
 FEHLER_MELDEN_AB = 3  # so viele Abrufe hintereinander ohne Preis → einmal Bescheid sagen
 KOPF = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",

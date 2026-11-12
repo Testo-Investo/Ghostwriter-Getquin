@@ -228,7 +228,8 @@ Dashboard, das jede Aktion des Agenten nachvollziehbar macht.
 - `agent/postfach.py` – Abwesenheitsnotizen wegsortieren, Rückläufer aus den Listen löschen
 - `agent/cli.py` – Einstieg: `python -m agent.cli <befehl>`
 - `preiswache/preis.py` – Marcs private Preiswache (12.11.): prüft Produktseiten (Liste `PRODUKTE`,
-  zuerst HSN Evowhey 2kg Schokolade, Grenze 60 €) täglich 9/11/13/15/17 Uhr (`deploy/preiswache.timer`),
+  zuerst HSN Evowhey 2kg Schokolade, Grenze 60 € – **abgeschaltet**: hsnstore.de antwortet dem Server
+  mit 403 (Bot-Schutz), wird nicht umgangen; Liste derzeit leer) täglich 9/11/13/15/17 Uhr (`deploy/preiswache.timer`),
   maßgeblich ist der „Preis mit Sparplan“ (sonst normaler Preis). Mail an Marc bei Unterschreitung (einmal, erneut erst nach Erholung oder weiterem Fall) und wenn
   der Preis 3× nicht lesbar war. `--test` zeigt nur den Preis. Zählt nicht zum Code-Stand der Freigaben
   (`freigabe.code_version` = letzter Commit in `agent/` oder `config/`).
